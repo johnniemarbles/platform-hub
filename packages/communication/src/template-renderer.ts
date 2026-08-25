@@ -119,5 +119,6 @@ function stringifyVariable(value: unknown): string {
   if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
     return String(value);
   }
-  return JSON.stringify(value);
+  const encoded = JSON.stringify(value);
+  return encoded ?? String(value);
 }
