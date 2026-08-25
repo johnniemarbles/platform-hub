@@ -176,12 +176,12 @@ export type CommunicationIntentIdentityErrorCode =
   | 'CHANNEL_RECIPIENT_MISMATCH';
 
 export class CommunicationIntentIdentityError extends Error {
-  constructor(
-    readonly code: CommunicationIntentIdentityErrorCode,
-    message: string,
-  ) {
+  readonly code: CommunicationIntentIdentityErrorCode;
+
+  constructor(code: CommunicationIntentIdentityErrorCode, message: string) {
     super(message);
     this.name = 'CommunicationIntentIdentityError';
+    this.code = code;
   }
 }
 
