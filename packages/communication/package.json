@@ -11,6 +11,7 @@
     "./dispatch": "./src/dispatch.ts",
     "./dispatch-routing": "./src/dispatch-routing.ts",
     "./provider-adapter": "./src/provider-adapter.ts",
+    "./provider-adapter-registry": "./src/provider-adapter-registry.ts",
     "./sender": "./src/sender.ts",
     "./provider-send-request": "./src/provider-send-request.ts"
   },
