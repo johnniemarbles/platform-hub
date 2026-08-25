@@ -1,5 +1,6 @@
 export * from './conversation.ts';
 export * from './suppression.ts';
+export * from './consent.ts';
 
 export type CommunicationChannel =
   | 'email'
