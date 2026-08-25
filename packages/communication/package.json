@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./persisted-preflight": "./src/persisted-preflight.ts"
+    "./persisted-preflight": "./src/persisted-preflight.ts",
+    "./template-renderer": "./src/template-renderer.ts"
   }
 }
