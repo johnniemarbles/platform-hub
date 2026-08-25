@@ -11,7 +11,8 @@
     "./dispatch": "./src/dispatch.ts",
     "./dispatch-routing": "./src/dispatch-routing.ts",
     "./provider-adapter": "./src/provider-adapter.ts",
-    "./sender": "./src/sender.ts"
+    "./sender": "./src/sender.ts",
+    "./provider-send-request": "./src/provider-send-request.ts"
   },
   "dependencies": {
     "@platform-hub/provider-registry": "workspace:*"
