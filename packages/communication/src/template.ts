@@ -61,9 +61,31 @@ export interface CommunicationTemplateResolutionInput {
   readonly locale?: string;
 }
 
+export type CommunicationTemplateMatchedScope =
+  | 'ORGANIZATION'
+  | 'TENANT'
+  | 'PLATFORM'
+  | 'NONE';
+
+export interface CommunicationTemplateResolution {
+  readonly matchedScope: CommunicationTemplateMatchedScope;
+  readonly template: CommunicationTemplate | null;
+}
+
 /**
- * Stable lookup identity for future resolution order:
- * ORGANIZATION -> TENANT -> PLATFORM. Provider choice is deliberately absent.
+ * Runtime read port. Implementations resolve only ACTIVE templates and apply
+ * ownership precedence ORGANIZATION -> TENANT -> PLATFORM. Authoring and
+ * version lifecycle are deliberately outside this read boundary.
+ */
+export interface CommunicationTemplateRepository {
+  resolveActive(
+    input: CommunicationTemplateResolutionInput,
+  ): Promise<CommunicationTemplateResolution>;
+}
+
+/**
+ * Stable lookup identity for resolution. Provider choice is deliberately
+ * absent; locale defaults to `en` when the caller does not provide one.
  */
 export function communicationTemplateKey(
   input: Pick<CommunicationTemplateResolutionInput, 'triggerKey' | 'channel' | 'locale'>,
