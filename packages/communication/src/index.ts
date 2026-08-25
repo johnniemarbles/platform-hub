@@ -104,6 +104,70 @@ export interface CommunicationDeliveryUpdate {
   readonly reasonCode?: string;
 }
 
+export type CommunicationSuppressionReason =
+  | 'BOUNCE'
+  | 'COMPLAINT'
+  | 'OPT_OUT'
+  | 'LEGAL_HOLD'
+  | 'UNSUBSCRIBE';
+
+export interface CommunicationSuppression {
+  readonly reason: CommunicationSuppressionReason;
+}
+
+export interface CommunicationPreflightInput {
+  readonly intent: CommunicationIntent;
+  readonly channel: CommunicationChannel;
+  readonly consentGranted?: boolean;
+  readonly suppression?: CommunicationSuppression;
+}
+
+export interface CommunicationPreflightDecision {
+  readonly allowed: boolean;
+  readonly reasonCode: Extract<
+    CommunicationDispatchReasonCode,
+    'OK' | 'CONSENT_MISSING' | 'SUPPRESSED' | 'INVALID_RECIPIENT'
+  >;
+  readonly reason: string;
+}
+
+export function evaluateCommunicationPreflight(
+  input: CommunicationPreflightInput,
+): CommunicationPreflightDecision {
+  const metadata = communicationChannelMetadata(input.channel);
+
+  if (!recipientSupportsChannel(input.intent.recipient, input.channel)) {
+    return {
+      allowed: false,
+      reasonCode: 'INVALID_RECIPIENT',
+      reason: `Recipient is not addressable through ${input.channel}.`,
+    };
+  }
+
+  const consentRequired = input.intent.consentRequired || metadata.requiresConsent;
+  if (consentRequired && input.consentGranted !== true) {
+    return {
+      allowed: false,
+      reasonCode: 'CONSENT_MISSING',
+      reason: `Consent is required for ${input.channel}.`,
+    };
+  }
+
+  if (metadata.supportsSuppression && input.suppression !== undefined) {
+    return {
+      allowed: false,
+      reasonCode: 'SUPPRESSED',
+      reason: `Recipient is suppressed for ${input.channel}: ${input.suppression.reason}.`,
+    };
+  }
+
+  return {
+    allowed: true,
+    reasonCode: 'OK',
+    reason: 'Communication preflight passed.',
+  };
+}
+
 export function recipientSupportsChannel(
   recipient: CommunicationRecipient,
   channel: CommunicationChannel,
