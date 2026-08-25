@@ -18,6 +18,7 @@
     "./provider-webhook": "./src/provider-webhook.ts",
     "./webhook-ingestion": "./src/webhook-ingestion.ts",
     "./retry-policy": "./src/retry-policy.ts",
+    "./send-attempt": "./src/send-attempt.ts",
     "./sender": "./src/sender.ts",
     "./provider-send-request": "./src/provider-send-request.ts"
   },
