@@ -237,3 +237,5 @@ function result(
     ? { valid: true, issues: [] }
     : { valid: false, issues };
 }
+
+export * from './routing.ts';
