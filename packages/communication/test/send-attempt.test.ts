@@ -6,7 +6,11 @@ import type {
   CommunicationDeliveryRecord,
   CommunicationDeliveryRepository,
 } from '../src/delivery-repository.ts';
-import type { CommunicationProviderSendRequest } from '../src/provider-adapter.ts';
+import type {
+  CommunicationProviderAdapter,
+  CommunicationProviderSendRequest,
+  CommunicationProviderSendResult,
+} from '../src/provider-adapter.ts';
 
 const connector = {
   connectorKey: 'email-primary',
@@ -24,12 +28,13 @@ const request: CommunicationProviderSendRequest = {
   recipientKey: 'email:user@example.com',
   rendered: {
     templateId: '11111111-1111-1111-1111-111111111111',
-    templateKey: 'lead-created',
     version: 1,
     channel: 'email',
     locale: 'en',
+    format: 'text',
     subject: 'Hello',
     body: 'World',
+    variables: {},
   },
   idempotencyKey: 'idem-1',
   requestedAt: '2026-08-25T05:00:00.000Z',
@@ -62,7 +67,9 @@ function repository(overrides: Partial<CommunicationDeliveryRepository> = {}): C
         delivery: {
           ...baseDelivery,
           state: input.transition.to,
-          attemptCount: input.incrementAttempt === true ? baseDelivery.attemptCount + 1 : baseDelivery.attemptCount,
+          attemptCount: input.incrementAttempt === true
+            ? baseDelivery.attemptCount + 1
+            : baseDelivery.attemptCount,
           ...(input.providerMessageId === undefined ? {} : { providerMessageId: input.providerMessageId }),
         },
       };
@@ -71,24 +78,13 @@ function repository(overrides: Partial<CommunicationDeliveryRepository> = {}): C
   };
 }
 
-function registry(result: Parameters<ConstructorParameters<typeof StaticCommunicationProviderAdapterRegistry>[0][number]['adapter']['send']>[0] extends never ? never : never) {
-  return result;
-}
-
-function adapterRegistry(send: () => Promise<{
-  status: 'ACCEPTED' | 'REJECTED' | 'RETRYABLE_FAILURE';
-  reasonCode: 'OK' | 'RATE_LIMITED' | 'INVALID_RECIPIENT' | 'SENDER_REJECTED' | 'AUTHENTICATION_FAILED' | 'PROVIDER_UNAVAILABLE' | 'PROVIDER_REJECTED';
-  providerMessageId?: string;
-  acceptedAt?: string;
-  retryAfterMs?: number;
-  reason?: string;
-}>) {
-  return new StaticCommunicationProviderAdapterRegistry([{ 
+function adapterRegistry(send: CommunicationProviderAdapter['send']) {
+  return new StaticCommunicationProviderAdapterRegistry([{
     providerKey: connector.providerKey,
     adapter: {
       adapterKey: baseDelivery.adapterKey,
       supportedChannels: ['email'],
-      async send() { return send(); },
+      send,
     },
   }]);
 }
@@ -100,7 +96,7 @@ test('accepts provider delivery and persists ACCEPTED exactly once', async () =>
   const result = await executeCommunicationSendAttempt({
     connector,
     request,
-    registry: adapterRegistry(async () => ({
+    registry: adapterRegistry(async (): Promise<CommunicationProviderSendResult> => ({
       status: 'ACCEPTED',
       reasonCode: 'OK',
       providerMessageId: 'provider-1',
@@ -115,7 +111,7 @@ test('accepts provider delivery and persists ACCEPTED exactly once', async () =>
             ...baseDelivery,
             state: 'ACCEPTED',
             attemptCount: 1,
-            providerMessageId: input.providerMessageId,
+            ...(input.providerMessageId === undefined ? {} : { providerMessageId: input.providerMessageId }),
           },
         };
       },
@@ -133,7 +129,7 @@ test('records retryable failure without changing delivery state', async () => {
   const result = await executeCommunicationSendAttempt({
     connector,
     request,
-    registry: adapterRegistry(async () => ({
+    registry: adapterRegistry(async (): Promise<CommunicationProviderSendResult> => ({
       status: 'RETRYABLE_FAILURE',
       reasonCode: 'RATE_LIMITED',
       retryAfterMs: 4000,
@@ -162,7 +158,7 @@ test('does not invoke provider again for an already-processed idempotency key', 
   const result = await executeCommunicationSendAttempt({
     connector,
     request,
-    registry: adapterRegistry(async () => {
+    registry: adapterRegistry(async (): Promise<CommunicationProviderSendResult> => {
       sends += 1;
       return { status: 'ACCEPTED', reasonCode: 'OK' };
     }),
@@ -182,7 +178,7 @@ test('rejects idempotency reuse that resolves to a different connector or adapte
   const result = await executeCommunicationSendAttempt({
     connector,
     request,
-    registry: adapterRegistry(async () => {
+    registry: adapterRegistry(async (): Promise<CommunicationProviderSendResult> => {
       sends += 1;
       return { status: 'ACCEPTED', reasonCode: 'OK' };
     }),
