@@ -38,6 +38,11 @@ export interface AppendConversationMessageInput {
   readonly occurredAt?: string;
 }
 
+export interface AppendedConversationMessage {
+  readonly messageId: string;
+  readonly occurredAt: string;
+}
+
 export interface ConversationHandoffInput {
   readonly tenantId: string;
   readonly conversationId: string;
@@ -53,6 +58,18 @@ export interface ConversationSnapshot {
   readonly status: ConversationStatus;
   readonly ownership: ConversationOwnership;
   readonly context: readonly ConversationContextRef[];
+}
+
+/**
+ * Persistence port used by application services. Concrete implementations must
+ * operate inside an already-authorized tenant context; this interface does not
+ * perform authentication or authorization itself.
+ */
+export interface ConversationRepository {
+  create(input: CreateConversationInput): Promise<ConversationSnapshot>;
+  load(tenantId: string, conversationId: string): Promise<ConversationSnapshot | null>;
+  appendMessage(input: AppendConversationMessageInput): Promise<AppendedConversationMessage>;
+  handoff(input: ConversationHandoffInput): Promise<ConversationSnapshot>;
 }
 
 /**
