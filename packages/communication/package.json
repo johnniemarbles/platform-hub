@@ -9,7 +9,8 @@
     "./template-renderer": "./src/template-renderer.ts",
     "./template-resolve-render": "./src/template-resolve-render.ts",
     "./dispatch": "./src/dispatch.ts",
-    "./dispatch-routing": "./src/dispatch-routing.ts"
+    "./dispatch-routing": "./src/dispatch-routing.ts",
+    "./provider-adapter": "./src/provider-adapter.ts"
   },
   "dependencies": {
     "@platform-hub/provider-registry": "workspace:*"
