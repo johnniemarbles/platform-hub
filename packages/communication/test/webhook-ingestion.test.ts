@@ -24,6 +24,7 @@ function repository(overrides: Partial<CommunicationDeliveryRepository> = {}): C
     async createOrGet() { return delivery; },
     async findByIdempotencyKey() { return delivery; },
     async findByProviderMessageId() { return delivery; },
+    async recordAttempt() { return delivery; },
     async applyTransition(input) {
       return { applied: true, delivery: { ...delivery, state: input.transition.to } };
     },
