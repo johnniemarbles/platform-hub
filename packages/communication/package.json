@@ -20,6 +20,7 @@
     "./retry-policy": "./src/retry-policy.ts",
     "./send-attempt": "./src/send-attempt.ts",
     "./voice-transport": "./src/voice-transport.ts",
+    "./voice-transport-repository": "./src/voice-transport-repository.ts",
     "./sender": "./src/sender.ts",
     "./provider-send-request": "./src/provider-send-request.ts"
   },
