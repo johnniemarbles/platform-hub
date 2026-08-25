@@ -63,6 +63,9 @@ export function renderCommunicationTemplate(
     };
   }
 
+  const subject = renderSource(input.template.content.subject, variables);
+  const title = renderSource(input.template.content.title, variables);
+
   return {
     ok: true,
     rendered: {
@@ -71,8 +74,8 @@ export function renderCommunicationTemplate(
       channel: input.template.key.channel,
       locale: input.template.key.locale,
       format: input.template.content.format,
-      subject: renderSource(input.template.content.subject, variables),
-      title: renderSource(input.template.content.title, variables),
+      ...(subject === undefined ? {} : { subject }),
+      ...(title === undefined ? {} : { title }),
       body: renderSource(input.template.content.body, variables) ?? '',
       variables,
     },
@@ -82,7 +85,8 @@ export function renderCommunicationTemplate(
 function collectPlaceholders(source: string | undefined, target: Set<string>): void {
   if (source === undefined) return;
   for (const match of source.matchAll(PLACEHOLDER_PATTERN)) {
-    target.add(match[1]);
+    const key = match[1];
+    if (key !== undefined) target.add(key);
   }
 }
 
