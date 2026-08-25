@@ -16,6 +16,7 @@
     "./delivery-state": "./src/delivery-state.ts",
     "./delivery-repository": "./src/delivery-repository.ts",
     "./provider-webhook": "./src/provider-webhook.ts",
+    "./webhook-ingestion": "./src/webhook-ingestion.ts",
     "./sender": "./src/sender.ts",
     "./provider-send-request": "./src/provider-send-request.ts"
   },
