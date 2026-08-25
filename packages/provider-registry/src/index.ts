@@ -79,7 +79,7 @@ export function routeConnector(
     .filter((connector) => connector.capabilityKeys.includes(request.capabilityKey))
     .filter((connector) => connector.ownership === 'PLATFORM' || connector.tenantId === request.tenantId);
 
-  if (considered.every((connector) => !connector.enabled)) {
+  if (considered.length > 0 && considered.every((connector) => !connector.enabled)) {
     return {
       connector: null,
       reason: 'NO_ENABLED_CONNECTOR',
@@ -125,9 +125,20 @@ function rejectionReasons(
     reasons.push('DENIED_BY_POLICY');
   }
 
-  const requiredRegions = intersectRequirements(request.requiredRegions, policy?.requiredRegions);
-  if (requiredRegions.length > 0 && (connector.region === undefined || !requiredRegions.includes(connector.region))) {
-    reasons.push('REGION_MISMATCH');
+  const requestRegions = request.requiredRegions ?? [];
+  const policyRegions = policy?.requiredRegions ?? [];
+  if (requestRegions.length > 0 && policyRegions.length > 0) {
+    const overlap = requestRegions.filter((entry) => policyRegions.includes(entry));
+    if (overlap.length === 0) {
+      reasons.push('REGION_POLICY_CONFLICT');
+    } else if (connector.region === undefined || !overlap.includes(connector.region)) {
+      reasons.push('REGION_MISMATCH');
+    }
+  } else {
+    const requiredRegions = requestRegions.length > 0 ? requestRegions : policyRegions;
+    if (requiredRegions.length > 0 && (connector.region === undefined || !requiredRegions.includes(connector.region))) {
+      reasons.push('REGION_MISMATCH');
+    }
   }
 
   const residency = unionRequirements(request.requiredResidencyTags, policy?.requiredResidencyTags);
@@ -161,10 +172,4 @@ function containsAll(actual: readonly string[], required: readonly string[]): bo
 
 function unionRequirements(a?: readonly string[], b?: readonly string[]): string[] {
   return [...new Set([...(a ?? []), ...(b ?? [])])];
-}
-
-function intersectRequirements(a?: readonly string[], b?: readonly string[]): string[] {
-  if (a === undefined || a.length === 0) return [...(b ?? [])];
-  if (b === undefined || b.length === 0) return [...a];
-  return a.filter((entry) => b.includes(entry));
 }
