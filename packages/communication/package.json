@@ -13,6 +13,7 @@
     "./provider-adapter": "./src/provider-adapter.ts",
     "./provider-adapter-registry": "./src/provider-adapter-registry.ts",
     "./provider-invocation": "./src/provider-invocation.ts",
+    "./delivery-state": "./src/delivery-state.ts",
     "./sender": "./src/sender.ts",
     "./provider-send-request": "./src/provider-send-request.ts"
   },
