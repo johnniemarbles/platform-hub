@@ -22,6 +22,7 @@
     "./voice-transport": "./src/voice-transport.ts",
     "./voice-transport-repository": "./src/voice-transport-repository.ts",
     "./voice-webhook": "./src/voice-webhook.ts",
+    "./voice-webhook-ingestion": "./src/voice-webhook-ingestion.ts",
     "./sender": "./src/sender.ts",
     "./provider-send-request": "./src/provider-send-request.ts"
   },
