@@ -168,6 +168,104 @@ export function evaluateCommunicationPreflight(
   };
 }
 
+export type CommunicationIntentIdentityErrorCode =
+  | 'TRIGGER_REQUIRED'
+  | 'TENANT_REQUIRED'
+  | 'IDEMPOTENCY_REQUIRED'
+  | 'RECIPIENT_REQUIRED'
+  | 'CHANNEL_RECIPIENT_MISMATCH';
+
+export class CommunicationIntentIdentityError extends Error {
+  constructor(
+    readonly code: CommunicationIntentIdentityErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'CommunicationIntentIdentityError';
+  }
+}
+
+export interface ResolvedCommunicationIntentIdentity {
+  readonly channel: CommunicationChannel;
+  readonly recipientKey: string;
+  readonly idempotencyKey: string;
+}
+
+/**
+ * Resolves the stable identifiers required before preflight, routing or
+ * persistence. It does not evaluate consent or suppression policy.
+ */
+export function resolveCommunicationIntentIdentity(
+  intent: CommunicationIntent,
+): ResolvedCommunicationIntentIdentity {
+  if (!nonBlank(intent.triggerKey)) {
+    throw new CommunicationIntentIdentityError('TRIGGER_REQUIRED', 'triggerKey is required.');
+  }
+  if (!nonBlank(intent.tenantId)) {
+    throw new CommunicationIntentIdentityError('TENANT_REQUIRED', 'tenantId is required.');
+  }
+  if (!nonBlank(intent.idempotencyKey)) {
+    throw new CommunicationIntentIdentityError('IDEMPOTENCY_REQUIRED', 'idempotencyKey is required.');
+  }
+
+  const channel = intent.channel ?? inferDefaultCommunicationChannel(intent.recipient);
+  if (channel === null) {
+    throw new CommunicationIntentIdentityError('RECIPIENT_REQUIRED', 'Recipient has no routable address.');
+  }
+  if (!recipientSupportsChannel(intent.recipient, channel)) {
+    throw new CommunicationIntentIdentityError(
+      'CHANNEL_RECIPIENT_MISMATCH',
+      `Recipient is not addressable through ${channel}.`,
+    );
+  }
+
+  return {
+    channel,
+    recipientKey: communicationRecipientKey(intent.recipient, channel),
+    idempotencyKey: intent.idempotencyKey.trim(),
+  };
+}
+
+/**
+ * Preserves BEMP's email -> WhatsApp -> SMS default precedence. Shared phone
+ * addressing never implicitly selects voice or RCS, and subject identity never
+ * implicitly selects push; those channels require explicit routing policy.
+ */
+export function inferDefaultCommunicationChannel(
+  recipient: CommunicationRecipient,
+): CommunicationChannel | null {
+  if (nonBlank(recipient.email)) return 'email';
+  if (nonBlank(recipient.whatsapp)) return 'whatsapp';
+  if (nonBlank(recipient.phone)) return 'sms';
+  if (nonBlank(recipient.subjectId)) return 'in_app';
+  return null;
+}
+
+export function communicationRecipientKey(
+  recipient: CommunicationRecipient,
+  channel: CommunicationChannel,
+): string {
+  if (!recipientSupportsChannel(recipient, channel)) {
+    throw new CommunicationIntentIdentityError(
+      'CHANNEL_RECIPIENT_MISMATCH',
+      `Recipient is not addressable through ${channel}.`,
+    );
+  }
+
+  switch (communicationChannelMetadata(channel).addressKind) {
+    case 'email':
+      return recipient.email!.trim().toLowerCase();
+    case 'phone':
+      return recipient.phone!.trim();
+    case 'whatsapp':
+      return (recipient.whatsapp ?? recipient.phone)!.trim();
+    case 'subject':
+      return recipient.subjectId!.trim();
+    case 'push':
+      return (recipient.pushEndpoint ?? recipient.subjectId)!.trim();
+  }
+}
+
 export function recipientSupportsChannel(
   recipient: CommunicationRecipient,
   channel: CommunicationChannel,
