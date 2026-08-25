@@ -32,6 +32,14 @@ export interface CreateCommunicationDeliveryInput {
   readonly requestedAt: string;
 }
 
+export interface RecordCommunicationDeliveryAttemptInput {
+  readonly tenantId: string;
+  readonly deliveryId: string;
+  readonly occurredAt: string;
+  readonly reasonCode: string;
+  readonly reason?: string;
+}
+
 export interface ApplyCommunicationDeliveryTransitionInput {
   readonly tenantId: string;
   readonly deliveryId: string;
@@ -56,6 +64,7 @@ export interface CommunicationDeliveryRepository {
     readonly connectorKey: string;
     readonly providerMessageId: string;
   }): Promise<CommunicationDeliveryRecord | null>;
+  recordAttempt(input: RecordCommunicationDeliveryAttemptInput): Promise<CommunicationDeliveryRecord>;
   applyTransition(
     input: ApplyCommunicationDeliveryTransitionInput,
   ): Promise<ApplyCommunicationDeliveryTransitionResult>;
