@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./persisted-preflight": "./src/persisted-preflight.ts",
     "./template-renderer": "./src/template-renderer.ts",
-    "./template-resolve-render": "./src/template-resolve-render.ts"
+    "./template-resolve-render": "./src/template-resolve-render.ts",
+    "./dispatch": "./src/dispatch.ts"
   }
 }
