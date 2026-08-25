@@ -1,3 +1,5 @@
+export * from './conversation.ts';
+
 export type CommunicationChannel =
   | 'email'
   | 'sms'
