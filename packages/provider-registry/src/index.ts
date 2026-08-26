@@ -173,3 +173,5 @@ function containsAll(actual: readonly string[], required: readonly string[]): bo
 function unionRequirements(a?: readonly string[], b?: readonly string[]): string[] {
   return [...new Set([...(a ?? []), ...(b ?? [])])];
 }
+
+export * from './credential-access.ts';
