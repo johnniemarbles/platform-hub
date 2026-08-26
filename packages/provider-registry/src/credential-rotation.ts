@@ -179,3 +179,98 @@ function stable(value: string): void {
     throw new Error('unstable value');
   }
 }
+
+export type CredentialRotationEventType = 'STAGED' | 'ACTIVATED' | 'REVOKED';
+
+export interface CredentialRotationEvent {
+  readonly eventId: string;
+  readonly rotationReference: string;
+  readonly sequence: number;
+  readonly requestId: string;
+  readonly tenantId: string;
+  readonly requestedBySubjectId: string;
+  readonly connectorKey: string;
+  readonly currentCredentialReference: CredentialReference;
+  readonly replacementCredentialReference: CredentialReference;
+  readonly eventType: CredentialRotationEventType;
+  readonly authorizationDecisionId: string;
+  readonly reason: string;
+  readonly occurredAt: string;
+  readonly correlationId: string;
+  readonly evidenceRefs: readonly string[];
+}
+
+export interface AppendCredentialRotationEventResult {
+  readonly appended: boolean;
+  readonly event: CredentialRotationEvent;
+}
+
+export interface CredentialRotationRepository {
+  append(event: CredentialRotationEvent): Promise<AppendCredentialRotationEventResult>;
+  load(
+    tenantId: string,
+    rotationReference: string,
+  ): Promise<readonly CredentialRotationEvent[]>;
+}
+
+export function validateCredentialRotationEvent(
+  event: CredentialRotationEvent,
+): void {
+  const values = [
+    event.eventId,
+    event.rotationReference,
+    event.requestId,
+    event.tenantId,
+    event.requestedBySubjectId,
+    event.connectorKey,
+    event.currentCredentialReference,
+    event.replacementCredentialReference,
+    event.authorizationDecisionId,
+    event.reason,
+    event.correlationId,
+    ...event.evidenceRefs,
+  ];
+  if (
+    values.some((value) => value.trim() === '' || value !== value.trim())
+    || event.evidenceRefs.length === 0
+    || !Number.isInteger(event.sequence)
+    || event.sequence < 1
+    || !Number.isFinite(Date.parse(event.occurredAt))
+    || event.currentCredentialReference === event.replacementCredentialReference
+    || ((event.sequence === 1) !== (event.eventType === 'STAGED'))
+  ) {
+    throw new Error('CREDENTIAL_ROTATION_EVENT_INVALID');
+  }
+}
+
+export function validateCredentialRotationHistory(
+  events: readonly CredentialRotationEvent[],
+): readonly CredentialRotationEvent[] {
+  let expected = 1;
+  let prior: CredentialRotationEvent | undefined;
+  for (const event of events) {
+    validateCredentialRotationEvent(event);
+    if (event.sequence !== expected) {
+      throw new Error(
+        'CREDENTIAL_ROTATION_EVENT_SEQUENCE_CONFLICT:expected=' + expected,
+      );
+    }
+    if (prior !== undefined) {
+      const sameRotation = event.rotationReference === prior.rotationReference
+        && event.requestId === prior.requestId
+        && event.tenantId === prior.tenantId
+        && event.connectorKey === prior.connectorKey
+        && event.currentCredentialReference === prior.currentCredentialReference
+        && event.replacementCredentialReference === prior.replacementCredentialReference;
+      const validTransition =
+        (prior.eventType === 'STAGED' && event.eventType === 'ACTIVATED')
+        || (prior.eventType === 'ACTIVATED' && event.eventType === 'REVOKED');
+      if (!sameRotation || !validTransition) {
+        throw new Error('CREDENTIAL_ROTATION_HISTORY_INVALID');
+      }
+    }
+    prior = event;
+    expected += 1;
+  }
+  return events;
+}
