@@ -77,7 +77,7 @@ export class ResendWebhookNormalizer implements CommunicationProviderWebhookNorm
       providerEventId: svixId,
       connectorKey: request.connectorKey,
       providerMessageId: payload.data.email_id,
-      channel: 'EMAIL',
+      channel: 'email',
       state,
       occurredAt: payload.created_at || new Date().toISOString(),
       ...(payload.data.reason ? { reason: payload.data.reason } : {}),

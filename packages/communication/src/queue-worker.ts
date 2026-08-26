@@ -1,6 +1,6 @@
 import type { PostgresClient, PostgresPool } from '@expadio/postgres-runtime';
 import type { CommunicationDispatchPort, PreparedCommunicationDispatch } from './dispatch.ts';
-import { PostgresCommunicationDeliveryRepository } from '@expadio/postgres-runtime/src/delivery.ts';
+import type { CommunicationDeliveryRepository } from './delivery-repository.ts';
 import type { CommunicationDeliveryState } from './delivery-state.ts';
 
 export interface CommunicationPayloadStore {
@@ -65,7 +65,6 @@ export class CommunicationQueueWorker {
         SELECT delivery_id, tenant_id, attempt_count, state
           FROM platform.communication_deliveries
          WHERE state = 'PENDING'
-           AND (updated_at <= NOW() - INTERVAL '1 minute' OR attempt_count = 0)
          LIMIT 1
            FOR UPDATE SKIP LOCKED
       `);
@@ -84,22 +83,22 @@ export class CommunicationQueueWorker {
       const dispatchResult = await this.#dispatchPort.dispatch(payload);
 
       const occurredAt = new Date().toISOString();
-      const repo = new PostgresCommunicationDeliveryRepository(client);
 
       if (dispatchResult.state === 'SENT' || dispatchResult.state === 'QUEUED') {
         const toState: CommunicationDeliveryState = dispatchResult.state === 'QUEUED' ? 'ACCEPTED' : 'SENT';
-        await repo.applyTransition({
-          tenantId,
-          deliveryId,
-          transition: {
-            from: 'PENDING',
-            to: toState,
-            occurredAt,
-            reasonCode: dispatchResult.reasonCode,
-          },
-          providerMessageId: dispatchResult.messageId ?? undefined,
-          incrementAttempt: true,
-        });
+        
+        await client.query(`
+          UPDATE platform.communication_deliveries
+             SET state = $3,
+                 provider_message_id = COALESCE($4, provider_message_id),
+                 attempt_count = attempt_count + 1,
+                 last_reason_code = $5,
+                 last_reason = $6,
+                 accepted_at = CASE WHEN $3 = 'ACCEPTED' THEN COALESCE(accepted_at, $7) ELSE accepted_at END,
+                 updated_at = $7
+           WHERE tenant_id = $1::uuid AND delivery_id = $2::uuid
+        `, [tenantId, deliveryId, toState, dispatchResult.messageId ?? null, dispatchResult.reasonCode, dispatchResult.refusalReason ?? null, occurredAt]);
+
       } else {
         // REFUSED or FAILED
         const isRetryable = [
@@ -112,30 +111,26 @@ export class CommunicationQueueWorker {
 
         if (isRetryable && attemptCount < this.#maxAttempts) {
           // Retryable failure - keep in PENDING or update attempt count
-          await repo.recordAttempt({
-            tenantId,
-            deliveryId,
-            occurredAt,
-            reasonCode: dispatchResult.reasonCode,
-            reason: dispatchResult.refusalReason,
-          });
-          // Note: exponential backoff logic can be implemented by setting updated_at or next_attempt_at in DB
-          // For now, recordAttempt updates updated_at, and the poll query filters by updated_at <= NOW() - ...
-          // To strictly use exponential backoff, we'd add next_attempt_at column to communication_deliveries.
+          const delayMs = Math.pow(2, attemptCount) * 1000;
+          await client.query(`
+            UPDATE platform.communication_deliveries
+               SET attempt_count = attempt_count + 1,
+                   last_reason_code = $3,
+                   last_reason = $4,
+                   updated_at = NOW() + (interval '1 millisecond' * $5)
+             WHERE tenant_id = $1::uuid AND delivery_id = $2::uuid
+          `, [tenantId, deliveryId, dispatchResult.reasonCode, dispatchResult.refusalReason ?? null, delayMs]);
         } else {
           // Terminal failure
-          await repo.applyTransition({
-            tenantId,
-            deliveryId,
-            transition: {
-              from: 'PENDING',
-              to: 'FAILED',
-              occurredAt,
-              reasonCode: dispatchResult.reasonCode,
-              reason: dispatchResult.refusalReason,
-            },
-            incrementAttempt: true,
-          });
+          await client.query(`
+            UPDATE platform.communication_deliveries
+               SET state = 'FAILED',
+                   attempt_count = attempt_count + 1,
+                   last_reason_code = $3,
+                   last_reason = $4,
+                   updated_at = $5
+             WHERE tenant_id = $1::uuid AND delivery_id = $2::uuid
+          `, [tenantId, deliveryId, dispatchResult.reasonCode, dispatchResult.refusalReason ?? null, occurredAt]);
         }
       }
 

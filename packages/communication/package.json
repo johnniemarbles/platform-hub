@@ -19,6 +19,8 @@
     "./delivery-repository": "./src/delivery-repository.ts",
     "./provider-webhook": "./src/provider-webhook.ts",
     "./webhook-ingestion": "./src/webhook-ingestion.ts",
+    "./resend-webhook-normalizer": "./src/resend-webhook-normalizer.ts",
+    "./twilio-webhook-normalizer": "./src/twilio-webhook-normalizer.ts",
     "./retry-policy": "./src/retry-policy.ts",
     "./send-attempt": "./src/send-attempt.ts",
     "./voice-transport": "./src/voice-transport.ts",
@@ -26,7 +28,9 @@
     "./voice-webhook": "./src/voice-webhook.ts",
     "./voice-webhook-ingestion": "./src/voice-webhook-ingestion.ts",
     "./sender": "./src/sender.ts",
-    "./provider-send-request": "./src/provider-send-request.ts"
+    "./provider-send-request": "./src/provider-send-request.ts",
+    "./twilio-sms-whatsapp-adapter": "./src/twilio-sms-whatsapp-adapter.ts",
+    "./twilio-voice-adapter": "./src/twilio-voice-adapter.ts"
   },
   "dependencies": {
     "@platform-hub/provider-registry": "workspace:*"
