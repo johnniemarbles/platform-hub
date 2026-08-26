@@ -176,3 +176,4 @@ function unionRequirements(a?: readonly string[], b?: readonly string[]): string
 
 export * from './credential-access.ts';
 export * from './audited-credential-issuer.ts';
+export * from './credential-rotation.ts';
