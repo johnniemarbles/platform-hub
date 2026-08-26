@@ -1,5 +1,4 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import type { ProviderSecretResolver } from '@platform-hub/provider-registry';
 import type {
   CommunicationProviderWebhookNormalizer,
   CommunicationProviderWebhookRequest,
@@ -9,7 +8,7 @@ import type {
 } from './provider-webhook.ts';
 
 export interface ResendWebhookNormalizerOptions {
-  readonly secretResolver: ProviderSecretResolver;
+  readonly resolveSecret: (connectorKey: string) => Promise<string | undefined>;
 }
 
 export class ResendWebhookNormalizer implements CommunicationProviderWebhookNormalizer {
@@ -28,7 +27,7 @@ export class ResendWebhookNormalizer implements CommunicationProviderWebhookNorm
       return { verified: false, reasonCode: 'WEBHOOK_SIGNATURE_INVALID', reason: 'Missing Svix headers' };
     }
 
-    const secret = await this.options.secretResolver.resolveSecret('resend-webhook-secret', request.connectorKey);
+    const secret = await this.options.resolveSecret(request.connectorKey);
     if (!secret) {
       return { verified: false, reasonCode: 'WEBHOOK_SIGNATURE_INVALID', reason: 'Missing webhook secret' };
     }
