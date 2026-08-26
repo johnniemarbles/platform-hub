@@ -34,7 +34,7 @@ test('TwilioWebhookNormalizer - verifyAndNormalize', async (t) => {
       assert.strictEqual(result.events.length, 1);
       assert.strictEqual(result.events[0].state, 'SENT');
       assert.strictEqual(result.events[0].providerMessageId, 'SM123');
-      assert.strictEqual(result.events[0].channel, 'SMS');
+      assert.strictEqual(result.events[0].channel, 'sms');
     }
   });
 
@@ -67,7 +67,7 @@ test('TwilioWebhookNormalizer - verifyAndNormalize', async (t) => {
       assert.strictEqual(result.events.length, 1);
       assert.strictEqual(result.events[0].state, 'DELIVERED');
       assert.strictEqual(result.events[0].providerMessageId, 'CA123');
-      assert.strictEqual(result.events[0].channel, 'VOICE');
+      assert.strictEqual(result.events[0].channel, 'voice');
     }
   });
 

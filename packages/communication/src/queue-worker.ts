@@ -1,4 +1,20 @@
-import type { PostgresClient, PostgresPool } from '@expadio/postgres-runtime';
+export interface SqlQueryResult<Row = Record<string, unknown>> {
+  readonly rows: readonly Row[];
+  readonly rowCount: number | null;
+}
+
+export interface PostgresClient {
+  query<Row = Record<string, unknown>>(
+    text: string,
+    values?: readonly unknown[],
+  ): Promise<SqlQueryResult<Row>>;
+  release?(): void;
+}
+
+export interface PostgresPool {
+  connect(): Promise<PostgresClient>;
+}
+
 import type { CommunicationDispatchPort, PreparedCommunicationDispatch } from './dispatch.ts';
 import type { CommunicationDeliveryRepository } from './delivery-repository.ts';
 import type { CommunicationDeliveryState } from './delivery-state.ts';

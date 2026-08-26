@@ -16,8 +16,10 @@ export interface TwilioWebhookNormalizerOptions {
 
 export class TwilioWebhookNormalizer implements CommunicationProviderWebhookNormalizer {
   readonly adapterKey: string;
+  readonly options: TwilioWebhookNormalizerOptions;
 
-  constructor(private readonly options: TwilioWebhookNormalizerOptions) {
+  constructor(options: TwilioWebhookNormalizerOptions) {
+    this.options = options;
     this.adapterKey = options.adapterKey;
   }
 
@@ -54,7 +56,10 @@ export class TwilioWebhookNormalizer implements CommunicationProviderWebhookNorm
       .update(dataToSign)
       .digest('base64');
 
-    if (!timingSafeEqual(Buffer.from(signature, 'utf8'), Buffer.from(expectedSignature, 'utf8'))) {
+    const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
+    const signatureBuffer = Buffer.from(signature, 'utf8');
+
+    if (expectedBuffer.length !== signatureBuffer.length || !timingSafeEqual(signatureBuffer, expectedBuffer)) {
       return { verified: false, reasonCode: 'WEBHOOK_SIGNATURE_INVALID', reason: 'Signature mismatch' };
     }
 
