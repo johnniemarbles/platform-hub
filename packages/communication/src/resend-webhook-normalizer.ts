@@ -13,8 +13,11 @@ export interface ResendWebhookNormalizerOptions {
 
 export class ResendWebhookNormalizer implements CommunicationProviderWebhookNormalizer {
   readonly adapterKey = 'resend-email-v1';
+  readonly options: ResendWebhookNormalizerOptions;
   
-  constructor(private readonly options: ResendWebhookNormalizerOptions) {}
+  constructor(options: ResendWebhookNormalizerOptions) {
+    this.options = options;
+  }
 
   async verifyAndNormalize(
     request: CommunicationProviderWebhookRequest,
