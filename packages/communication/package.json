@@ -13,6 +13,7 @@
     "./provider-adapter": "./src/provider-adapter.ts",
     "./provider-adapter-registry": "./src/provider-adapter-registry.ts",
     "./provider-invocation": "./src/provider-invocation.ts",
+    "./resend-email-adapter": "./src/resend-email-adapter.ts",
     "./delivery-state": "./src/delivery-state.ts",
     "./delivery-repository": "./src/delivery-repository.ts",
     "./provider-webhook": "./src/provider-webhook.ts",
