@@ -190,3 +190,33 @@ function requireStable(value: string, label: string): void {
     throw new CredentialLeaseError('CREDENTIAL_LEASE_DECISION_INVALID', `${label} is invalid`);
   }
 }
+
+export type CredentialLeaseOutcome = 'ISSUED' | 'DENIED' | 'FAILED';
+
+export interface CredentialLeaseAuditEvent {
+  readonly eventId: string;
+  readonly request: CredentialLeaseRequest;
+  readonly credentialReference: CredentialReference;
+  readonly authorizationDecisionId: string;
+  readonly authorizationReasonKey: string;
+  readonly outcome: CredentialLeaseOutcome;
+  readonly leaseReference: string | null;
+  readonly issuerAuditReference: string | null;
+  readonly failureReasonKey: string | null;
+  readonly issuedAt: string | null;
+  readonly expiresAt: string | null;
+  readonly recordedAt: string;
+}
+
+export interface RecordCredentialLeaseAuditEventResult {
+  readonly recorded: boolean;
+  readonly event: CredentialLeaseAuditEvent;
+}
+
+export interface CredentialLeaseAuditRepository {
+  record(event: CredentialLeaseAuditEvent): Promise<RecordCredentialLeaseAuditEventResult>;
+  findByRequest(input: {
+    readonly tenantId: string;
+    readonly requestId: string;
+  }): Promise<CredentialLeaseAuditEvent | undefined>;
+}
