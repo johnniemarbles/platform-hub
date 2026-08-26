@@ -32,6 +32,7 @@ export interface CredentialLeaseIssuerInput {
   readonly request: CredentialLeaseRequest;
   readonly credentialReference: CredentialReference;
   readonly authorizationDecisionId: string;
+  readonly authorizationReasonKey: string;
   readonly maximumLeaseSeconds: number;
 }
 
@@ -129,6 +130,7 @@ export class GovernedCredentialLeaseService {
       request,
       credentialReference,
       authorizationDecisionId: decision.decisionId,
+      authorizationReasonKey: decision.reasonKey,
       maximumLeaseSeconds: this.maximumLeaseSeconds,
     });
     validateLease(lease, request, credentialReference, decision.decisionId, this.maximumLeaseSeconds);
