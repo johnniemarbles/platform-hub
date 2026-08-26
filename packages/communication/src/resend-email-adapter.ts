@@ -7,6 +7,8 @@ import type {
 export interface ResendCredentialRequest {
   readonly tenantId: string;
   readonly organizationId?: string;
+  readonly triggerKey: string;
+  readonly idempotencyKey: string;
   readonly purpose: CommunicationProviderSendRequest['purpose'];
   readonly requestedAt: string;
 }
@@ -69,6 +71,8 @@ export class ResendEmailAdapter implements CommunicationProviderAdapter {
     const token = await this.#apiToken({
       tenantId: request.tenantId,
       ...(request.organizationId === undefined ? {} : { organizationId: request.organizationId }),
+      triggerKey: request.triggerKey,
+      idempotencyKey: request.idempotencyKey,
       purpose: request.purpose,
       requestedAt: request.requestedAt,
     });
