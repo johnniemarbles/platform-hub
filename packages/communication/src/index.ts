@@ -301,3 +301,4 @@ export * from './throttle.js';
 export * from './decision-trace.js';
 export * from './provider-unavailable-adapter.js';
 export * from './sending-domain.js';
+export * from './spine.js';
