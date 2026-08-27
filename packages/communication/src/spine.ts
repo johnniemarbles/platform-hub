@@ -2,20 +2,20 @@ import type {
   CommunicationDispatchResult,
   CommunicationIntent,
   CommunicationPreflightDecision,
-} from './index.js';
-import { derivePlane, planeCharacteristics, type CommunicationPlane } from './plane.js';
+} from './index.ts';
+import { derivePlane, planeCharacteristics, type CommunicationPlane } from './plane.ts';
 import {
   DecisionTraceBuilder,
   redactRecipient,
   type DecisionTrace,
   type DecisionTraceRepository,
   type TraceOutcome,
-} from './decision-trace.js';
+} from './decision-trace.ts';
 import type {
   CommunicationSpendRepository,
   CommunicationThrottleRepository,
   ThrottleLimits,
-} from './throttle.js';
+} from './throttle.ts';
 
 /**
  * Design spec §3.1 — the enforcement spine.

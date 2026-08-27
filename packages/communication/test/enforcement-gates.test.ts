@@ -10,8 +10,8 @@ import {
   redactRecipient,
   traceExpiry,
 } from '../src/decision-trace.ts';
-import { buildRevocationAttestation, SEND_PATH_LEASE_TTL_SECONDS } from '../src/credential-revocation.ts';
-import { analyseSpfMerge, countSpfLookups, recordNameForRegistrar, requiredDnsRecords } from '../src/dns-records.ts';
+import { buildRevocationAttestation, SEND_PATH_LEASE_TTL_SECONDS } from '@platform-hub/credential-custody';
+import { analyseSpfMerge, countSpfLookups, recordNameForRegistrar, requiredDnsRecords } from '../src/sending-domain.ts';
 import { ProviderUnavailableAdapter } from '../src/provider-unavailable-adapter.ts';
 
 // ── §0.5 / C14 / K7 — plane separation ───────────────────────────────────────
@@ -237,7 +237,7 @@ test('an unavailable provider refuses loudly rather than throwing or dropping', 
   const adapter = new ProviderUnavailableAdapter({ requestedProviderKey: 'twilio', channel: 'sms' });
   const result = await adapter.send({} as never);
 
-  assert.equal(result.state, 'REFUSED');
+  assert.equal(result.status, 'REJECTED');
   assert.equal(result.reasonCode, 'PROVIDER_UNAVAILABLE');
-  assert.ok(result.refusalReason);
+  assert.ok(result.reason);
 });

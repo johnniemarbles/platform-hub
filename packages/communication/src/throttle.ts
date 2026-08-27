@@ -1,4 +1,4 @@
-import type { CommunicationPlane } from './plane.js';
+import type { CommunicationPlane } from './plane.ts';
 
 /**
  * Design spec §3.1 step 13 and §4.2 — quota and throttle.

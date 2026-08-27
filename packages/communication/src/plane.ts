@@ -1,4 +1,4 @@
-import type { CommunicationPurpose } from './index.js';
+import type { CommunicationPurpose } from './index.ts';
 
 /**
  * Design spec §4.2 / BEMP v2.0 §0.5 — the two-plane principle.

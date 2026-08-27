@@ -1,9 +1,9 @@
-import type { CommunicationChannel } from './index.js';
+import type { CommunicationChannel } from './index.ts';
 import type {
   CommunicationProviderAdapter,
-  ProviderSendResult,
-} from './provider-adapter.js';
-import type { ProviderSendRequest } from './provider-send-request.js';
+  CommunicationProviderSendResult,
+  CommunicationProviderSendRequest,
+} from './provider-adapter.ts';
 
 /**
  * PORTED PATTERN: BEMP's ProviderUnavailableAdapter
@@ -20,31 +20,28 @@ import type { ProviderSendRequest } from './provider-send-request.js';
  * than a message that is refused, because nobody notices for days.
  */
 export class ProviderUnavailableAdapter implements CommunicationProviderAdapter {
-  readonly providerKey = 'unavailable';
-  readonly channel: CommunicationChannel;
+  readonly adapterKey = 'unavailable';
+  readonly supportedChannels: readonly CommunicationChannel[];
   private readonly requestedProviderKey: string;
   private readonly reason: string;
 
   constructor(input: {
     readonly requestedProviderKey: string;
-    readonly channel: CommunicationChannel;
+    readonly channel: CommunicationChannel | string;
     readonly reason?: string;
   }) {
     this.requestedProviderKey = input.requestedProviderKey;
-    this.channel = input.channel;
+    this.supportedChannels = [input.channel as CommunicationChannel];
     this.reason =
       input.reason ??
       `No active communication provider is configured for channel '${input.channel}'.`;
   }
 
-  async send(_request: ProviderSendRequest): Promise<ProviderSendResult> {
+  async send(_request: CommunicationProviderSendRequest): Promise<CommunicationProviderSendResult> {
     return {
-      state: 'REFUSED',
+      status: 'REJECTED',
       reasonCode: 'PROVIDER_UNAVAILABLE',
-      providerKey: this.providerKey,
-      providerMessageId: null,
-      refusalReason: this.reason,
-      occurredAt: new Date().toISOString(),
+      reason: this.reason,
     };
   }
 
