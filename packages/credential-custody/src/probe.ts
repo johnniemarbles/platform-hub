@@ -151,7 +151,7 @@ export const sesProbe: CredentialProbe = {
       };
     }
 
-    const { sigV4Headers } = await import('./aws-sigv4.js');
+    const { sigV4Headers } = await import('./aws-sigv4.ts');
     const host = `email.${region}.amazonaws.com`;
     const headers = await sigV4Headers({
       method: 'GET', host, path: '/v2/email/account', region, service: 'ses',

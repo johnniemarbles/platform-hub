@@ -1,8 +1,8 @@
-import { CustodyError, type CustodyMode } from './index.js';
-import { credentialFingerprint } from './fingerprint.js';
-import { probeFor, type ProbeResult } from './probe.js';
-import { delegatedSecretPath, type SecretVault } from './secret-vault.js';
-import { WrappingKeyStore, zeroise, type WrappedSecretEnvelope } from './wrapping.js';
+import { CustodyError, type CustodyMode } from './index.ts';
+import { credentialFingerprint } from './fingerprint.ts';
+import { probeFor, type ProbeResult } from './probe.ts';
+import { delegatedSecretPath, type SecretVault } from './secret-vault.ts';
+import { WrappingKeyStore, zeroise, type WrappedSecretEnvelope } from './wrapping.ts';
 
 /**
  * Design spec §2.2 — Mode 1 intake, steps 4–8.

@@ -1,4 +1,4 @@
-import type { CustodyMode } from './index.js';
+import type { CustodyMode } from './index.ts';
 
 /**
  * Design spec §3.2 — trust boundaries.

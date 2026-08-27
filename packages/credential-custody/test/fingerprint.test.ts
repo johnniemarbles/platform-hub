@@ -7,7 +7,7 @@ import {
   detectFingerprintCollisions,
   fingerprintsMatch,
   parseFingerprintKey,
-} from '../src/fingerprint.js';
+} from '../src/fingerprint.ts';
 
 const key = randomBytes(32);
 
