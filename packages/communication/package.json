@@ -33,6 +33,7 @@
     "./twilio-voice-adapter": "./src/twilio-voice-adapter.ts"
   },
   "dependencies": {
-    "@platform-hub/provider-registry": "workspace:*"
+    "@platform-hub/provider-registry": "workspace:*",
+    "@platform-hub/credential-custody": "workspace:*"
   }
 }
