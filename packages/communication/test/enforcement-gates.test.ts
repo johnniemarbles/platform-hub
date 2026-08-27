@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { derivePlane, planeCharacteristics, allocatePlaneCapacity } from '../src/plane.js';
-import { evaluateThrottle, evaluateSpendCap } from '../src/throttle.js';
+import { derivePlane, planeCharacteristics, allocatePlaneCapacity } from '../src/plane.ts';
+import { evaluateThrottle, evaluateSpendCap } from '../src/throttle.ts';
 import {
   DecisionTraceBuilder,
   ENFORCEMENT_GATES,
   gateOrdinal,
   redactRecipient,
   traceExpiry,
-} from '../src/decision-trace.js';
-import { buildRevocationAttestation, SEND_PATH_LEASE_TTL_SECONDS } from '@platform-hub/credential-custody';
-import { analyseSpfMerge, countSpfLookups, recordNameForRegistrar, requiredDnsRecords } from '../src/sending-domain.js';
-import { ProviderUnavailableAdapter } from '../src/provider-unavailable-adapter.js';
+} from '../src/decision-trace.ts';
+import { buildRevocationAttestation, SEND_PATH_LEASE_TTL_SECONDS } from '../src/credential-revocation.ts';
+import { analyseSpfMerge, countSpfLookups, recordNameForRegistrar, requiredDnsRecords } from '../src/dns-records.ts';
+import { ProviderUnavailableAdapter } from '../src/provider-unavailable-adapter.ts';
 
 // ── §0.5 / C14 / K7 — plane separation ───────────────────────────────────────
 
