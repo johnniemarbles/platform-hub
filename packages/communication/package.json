@@ -35,5 +35,8 @@
   "dependencies": {
     "@platform-hub/provider-registry": "workspace:*",
     "@platform-hub/credential-custody": "workspace:*"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.ts"
   }
 }
