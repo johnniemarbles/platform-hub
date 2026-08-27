@@ -89,3 +89,4 @@ export function failurePolicyPermitsFallback(input: {
   if (input.residencyPinned) return false;
   return input.purpose !== 'marketing';
 }
+export * from './revocation.js';
