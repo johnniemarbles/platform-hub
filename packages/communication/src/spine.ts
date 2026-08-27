@@ -196,7 +196,7 @@ export async function runEnforcementSpine(
   if (!input.preflight.allowed && input.preflight.reasonCode === 'SUPPRESSED') {
     trace.fail('SUPPRESSION', 'recipient is on a suppression list', {
       message: 'This address is suppressed. Suppression is never bypassed, including by an explicit override flag.',
-      remediationHref: '/communications/suppressions',
+      href: '/communications/suppressions',
     });
     return finish('SUPPRESSED', 'BRAND_SUPPRESSED');
   }
@@ -208,7 +208,7 @@ export async function runEnforcementSpine(
       trace.fail(
         'FREQUENCY_CAP',
         `${input.frequencyCap.used} of ${input.frequencyCap.limit} in the trailing window`,
-        { message: 'This recipient has reached their frequency cap. Raise the cap in Limits, or wait for the window to roll.', remediationHref: '/communications/limits' },
+        { message: 'This recipient has reached their frequency cap. Raise the cap in Limits, or wait for the window to roll.', href: '/communications/limits' },
       );
       return finish('SUPPRESSED', 'FREQUENCY_CAPPED');
     }
@@ -222,7 +222,7 @@ export async function runEnforcementSpine(
     trace.fail(
       'QUIET_HOURS',
       `${input.quietHours.localTime} recipient local · window ${input.quietHours.window}`,
-      { message: 'This message falls inside the recipient\'s quiet hours. It will send when the window opens, or you can change the window in Limits.', remediationHref: '/communications/limits' },
+      { message: 'This message falls inside the recipient\'s quiet hours. It will send when the window opens, or you can change the window in Limits.', href: '/communications/limits' },
     );
     return finish('THROTTLED', 'QUIET_HOURS');
   }
@@ -249,7 +249,7 @@ export async function runEnforcementSpine(
   if (!input.render.rendered) {
     trace.fail('TEMPLATE_RENDER', input.render.reasonCode ?? 'template could not be rendered', {
       message: 'The template failed to render. Check that every variable the template uses is present in the intent.',
-      remediationHref: '/communications/templates',
+      href: '/communications/templates',
     });
     return finish('REFUSED', input.render.reasonCode ?? 'TEMPLATE_MISSING');
   }
