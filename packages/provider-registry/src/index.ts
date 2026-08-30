@@ -180,3 +180,5 @@ export * from './audited-credential-issuer.ts';
 export * from './credential-rotation.ts';
 export * from './credential-rotation-activation.ts';
 export * from './credential-rotation-revocation.ts';
+
+export * from './persisted-credential-lease-authorizer.ts';

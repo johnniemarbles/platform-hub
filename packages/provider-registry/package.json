@@ -6,5 +6,10 @@
   "exports": {
     ".": "./src/index.ts",
     "./repository": "./src/repository.ts"
+  },
+  "dependencies": {
+    "@expadio/authorization": "workspace:*",
+    "@expadio/authorization-persistence": "workspace:*",
+    "@expadio/tenancy": "workspace:*"
   }
 }
