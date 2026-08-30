@@ -243,3 +243,7 @@ export * from './routing.ts';
 export * from './jobs.ts';
 
 export * from './job-repository.ts';
+
+export * from './gemini-adapter.ts';
+
+export * from './openai-adapter.ts';
