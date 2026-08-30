@@ -376,6 +376,10 @@ export async function queueGovernedCommunicateAction(
     connectorKey: routed.connector.connectorKey,
     adapterKey,
     requestedAt: evaluatedAt,
+    dispatchSnapshot: {
+      dispatch: preparedDispatch,
+      consentRequired: config.consentRequired,
+    },
   });
 
   return {
