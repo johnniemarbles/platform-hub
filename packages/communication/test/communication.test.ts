@@ -22,7 +22,10 @@ test('communication channel registry preserves consent and suppression semantics
   assert.equal(communicationChannelMetadata('voice').supportsSuppression, true);
   assert.equal(communicationChannelMetadata('email').supportsSuppression, true);
   assert.equal(communicationChannelMetadata('in_app').supportsSuppression, false);
-  assert.equal(listCommunicationChannels().length, 7);
+  assert.equal(communicationChannelMetadata('social').requiresConsent, true);
+  assert.equal(communicationChannelMetadata('social').supportsSuppression, false);
+  assert.equal(communicationChannelMetadata('social').addressKind, 'subject');
+  assert.equal(listCommunicationChannels().length, 8);
 });
 
 test('recipient capability is channel-specific', () => {
@@ -39,6 +42,7 @@ test('recipient capability is channel-specific', () => {
   assert.equal(recipientSupportsChannel(recipient, 'in_app'), true);
   assert.equal(recipientSupportsChannel(recipient, 'push'), true);
   assert.equal(recipientSupportsChannel(recipient, 'rcs'), true);
+  assert.equal(recipientSupportsChannel(recipient, 'social'), true);
 });
 
 test('recipient capability fails closed when required addressing is absent', () => {
@@ -48,6 +52,7 @@ test('recipient capability fails closed when required addressing is absent', () 
   assert.equal(recipientSupportsChannel(recipient, 'voice'), false);
   assert.equal(recipientSupportsChannel(recipient, 'in_app'), false);
   assert.equal(recipientSupportsChannel(recipient, 'push'), false);
+  assert.equal(recipientSupportsChannel(recipient, 'social'), false);
 });
 
 test('preflight rejects a channel without a usable recipient address', () => {
@@ -90,6 +95,38 @@ test('preflight allows an addressable, consented, non-suppressed intent', () => 
     consentGranted: true,
   });
 
+  assert.equal(decision.allowed, true);
+  assert.equal(decision.reasonCode, 'OK');
+});
+
+test('social preflight requires subjectId and consent', () => {
+  const missing = evaluateCommunicationPreflight({
+    intent: { ...baseIntent, recipient: { email: 'a@example.com' }, channel: 'social' },
+    channel: 'social',
+    consentGranted: true,
+  });
+  assert.equal(missing.allowed, false);
+  assert.equal(missing.reasonCode, 'INVALID_RECIPIENT');
+
+  const noConsent = evaluateCommunicationPreflight({
+    intent: { ...baseIntent, recipient: { subjectId: 'urn:li:person:abc' }, channel: 'social' },
+    channel: 'social',
+  });
+  assert.equal(noConsent.allowed, false);
+  assert.equal(noConsent.reasonCode, 'CONSENT_MISSING');
+});
+
+test('social ignores bounce-list suppression; revoke the connector instead', () => {
+  const decision = evaluateCommunicationPreflight({
+    intent: {
+      ...baseIntent,
+      recipient: { subjectId: 'urn:li:person:abc' },
+      channel: 'social',
+    },
+    channel: 'social',
+    consentGranted: true,
+    suppression: { reason: 'OPT_OUT' },
+  });
   assert.equal(decision.allowed, true);
   assert.equal(decision.reasonCode, 'OK');
 });

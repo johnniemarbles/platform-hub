@@ -10,7 +10,8 @@ export type CommunicationChannel =
   | 'voice'
   | 'in_app'
   | 'push'
-  | 'rcs';
+  | 'rcs'
+  | 'social';
 
 export type CommunicationPurpose = 'transactional' | 'marketing' | 'system';
 
@@ -31,6 +32,7 @@ const CHANNELS: Readonly<Record<CommunicationChannel, CommunicationChannelMetada
   in_app: { channel: 'in_app', addressKind: 'subject', requiresConsent: false, supportsSuppression: false },
   push: { channel: 'push', addressKind: 'push', requiresConsent: true, supportsSuppression: true },
   rcs: { channel: 'rcs', addressKind: 'phone', requiresConsent: true, supportsSuppression: true },
+  social: { channel: 'social', addressKind: 'subject', requiresConsent: true, supportsSuppression: false },
 };
 
 export function communicationChannelMetadata(channel: CommunicationChannel): CommunicationChannelMetadata {
@@ -196,10 +198,6 @@ export interface ResolvedCommunicationIntentIdentity {
   readonly idempotencyKey: string;
 }
 
-/**
- * Resolves the stable identifiers required before preflight, routing or
- * persistence. It does not evaluate consent or suppression policy.
- */
 export function resolveCommunicationIntentIdentity(
   intent: CommunicationIntent,
 ): ResolvedCommunicationIntentIdentity {
@@ -234,7 +232,7 @@ export function resolveCommunicationIntentIdentity(
 /**
  * Preserves BEMP's email -> WhatsApp -> SMS default precedence. Shared phone
  * addressing never implicitly selects voice or RCS, and subject identity never
- * implicitly selects push; those channels require explicit routing policy.
+ * implicitly selects push or social; those channels require explicit routing policy.
  */
 export function inferDefaultCommunicationChannel(
   recipient: CommunicationRecipient,

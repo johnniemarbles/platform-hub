@@ -15,6 +15,8 @@
     "./provider-invocation": "./src/provider-invocation.ts",
     "./resend-email-adapter": "./src/resend-email-adapter.ts",
     "./governed-resend-binding": "./src/governed-resend-binding.ts",
+    "./linkedin-social-text-adapter": "./src/linkedin-social-text-adapter.ts",
+    "./governed-linkedin-binding": "./src/governed-linkedin-binding.ts",
     "./governed-action-adapter": "./src/governed-action-adapter.ts",
     "./delivery-state": "./src/delivery-state.ts",
     "./delivery-repository": "./src/delivery-repository.ts",
