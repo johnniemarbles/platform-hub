@@ -40,6 +40,66 @@ export interface ObjectStorageObservation {
   readonly sourceReferences: readonly string[];
 }
 
+export interface DurableArtifactWriteInput {
+  readonly tenantId: string;
+  readonly artifactKind:
+    | 'AI_TEXT'
+    | 'AI_EMBEDDING'
+    | 'VOICE_TRANSCRIPT'
+    | 'VOICE_AUDIO';
+  readonly sourceKind: 'AI_INVOCATION' | 'VOICE_REQUEST';
+  readonly sourceId: string;
+  readonly content: string | Uint8Array;
+  readonly contentType: string;
+  readonly providerKey: string;
+  readonly connectorKey: string;
+  readonly modelKey?: string;
+  readonly correlationId?: string;
+  readonly requiredResidencyTags: readonly string[];
+  readonly requiredComplianceTags: readonly string[];
+}
+
+export interface DurableArtifactWriteResult {
+  readonly contentReference: string;
+  readonly sha256: string;
+  readonly byteLength: number;
+}
+
+export interface DurableArtifactSink {
+  write(
+    input: DurableArtifactWriteInput,
+  ): Promise<DurableArtifactWriteResult>;
+}
+
+export interface DurableArtifactReadContext {
+  readonly tenantId: string;
+  readonly reference: string;
+  readonly purpose: string;
+  readonly requiredResidencyTags: readonly string[];
+  readonly requiredComplianceTags: readonly string[];
+}
+
+export interface DurableArtifactTextReadResult {
+  readonly content: string;
+  readonly contentReference: string;
+}
+
+export interface DurableArtifactProviderFetchResult {
+  readonly providerFetchUrl: string;
+  readonly contentReference: string;
+  readonly expiresAt: string;
+}
+
+export interface DurableArtifactSource {
+  readText(
+    input: DurableArtifactReadContext,
+  ): Promise<DurableArtifactTextReadResult>;
+
+  issueProviderFetchUrl(
+    input: DurableArtifactReadContext,
+  ): Promise<DurableArtifactProviderFetchResult>;
+}
+
 export interface ObjectStorageGateway {
   execute(
     intent: ObjectStorageIntent,
@@ -249,3 +309,5 @@ function result(
 export * from './routing.ts';
 export * from './repository.ts';
 export * from './auditing.ts';
+
+export * from './supabase-artifact-store.ts';
