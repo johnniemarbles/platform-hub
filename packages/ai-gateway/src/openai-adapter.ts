@@ -135,7 +135,11 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
       invocationId: intent.invocationId,
       tenantId: intent.tenantId,
       status: intent.operation === "EXTRACT" || intent.operation === "CLASSIFY" ? "PROPOSAL" : "OBSERVATION",
-      outputReference: `ref://ai-output/${intent.invocationId}#${encodeURIComponent(generatedText.slice(0, 120))}`,
+      outputReference: `provider-output://${intent.invocationId}`,
+      outputContent: {
+        mediaType: "text/plain",
+        value: generatedText,
+      },
       confidence: 0.95,
       provenance,
     };

@@ -41,6 +41,15 @@ export interface AiProposal {
   readonly tenantId: string;
   readonly status: 'OBSERVATION' | 'PROPOSAL';
   readonly outputReference: string;
+  /**
+   * Ephemeral provider output. Application workers may persist this into a
+   * tenant-scoped artifact store, but job/event history must retain only an
+   * opaque outputReference.
+   */
+  readonly outputContent?: {
+    readonly mediaType: string;
+    readonly value: string;
+  };
   readonly confidence?: number;
   readonly provenance: AiProvenance;
 }
@@ -70,6 +79,7 @@ export type AiContractValidationCode =
   | 'AI_PROPOSAL_INVOCATION_MISMATCH'
   | 'AI_PROPOSAL_TENANT_MISMATCH'
   | 'AI_OUTPUT_REFERENCE_REQUIRED'
+  | 'AI_OUTPUT_CONTENT_INVALID'
   | 'AI_CONFIDENCE_INVALID'
   | 'AI_PROVENANCE_REQUIRED'
   | 'AI_PROVENANCE_PROMPT_MISMATCH'
@@ -162,6 +172,18 @@ export function validateAiProposal(
     issues,
   );
   if (
+    proposal.outputContent !== undefined
+    && (
+      proposal.outputContent.mediaType.trim() === ''
+      || proposal.outputContent.value.trim() === ''
+    )
+  ) {
+    issues.push({
+      code: 'AI_OUTPUT_CONTENT_INVALID',
+      path: 'outputContent',
+    });
+  }
+  if (
     proposal.confidence !== undefined
     && (
       !Number.isFinite(proposal.confidence)
@@ -247,3 +269,5 @@ export * from './job-repository.ts';
 export * from './gemini-adapter.ts';
 
 export * from './openai-adapter.ts';
+
+export * from './governed-credential-binding.ts';
