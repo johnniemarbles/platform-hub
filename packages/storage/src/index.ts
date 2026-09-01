@@ -54,6 +54,9 @@ export interface DurableArtifactWriteInput {
   readonly providerKey: string;
   readonly connectorKey: string;
   readonly modelKey?: string;
+  readonly capabilityKey: string;
+  readonly costMinorUnits: number;
+  readonly providerCostOwnership: 'BYOK' | 'EXPADIO_MANAGED';
   readonly correlationId?: string;
   readonly requiredResidencyTags: readonly string[];
   readonly requiredComplianceTags: readonly string[];
