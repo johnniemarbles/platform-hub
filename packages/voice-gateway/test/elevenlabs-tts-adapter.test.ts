@@ -24,11 +24,11 @@ const connector: ConnectorDefinition = {
 
 const intent: VoiceIntelligenceIntent = {
   requestId: "req_tts_001",
-  tenantId: "tenant_dentex_01",
+  tenantId: "tenant_acme_01",
   callId: "call_session_789",
   operation: "SYNTHESIZE",
-  purpose: "Synthesize doctor greeting message",
-  inputReference: "Hello, this is the clinical desk calling regarding your upcoming appointment.",
+  purpose: "Synthesize agent greeting message",
+  inputReference: "Hello, thank you for calling. How can I help you today?",
   languageTag: "en-US",
   governance: {
     recordingConsentEvidenceReference: "consent://recording/signed-001",

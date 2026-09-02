@@ -24,10 +24,10 @@ const connector: ConnectorDefinition = {
 
 const intent: VoiceIntelligenceIntent = {
   requestId: "req_voice_001",
-  tenantId: "tenant_dentex_01",
+  tenantId: "tenant_acme_01",
   callId: "call_session_789",
   operation: "TRANSCRIBE",
-  purpose: "Transcribe patient consultation call",
+  purpose: "Transcribe client consultation call",
   inputReference: "https://storage.expadio.internal/audio/consultation-001.wav",
   languageTag: "en-US",
   governance: {
