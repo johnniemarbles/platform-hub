@@ -82,6 +82,7 @@ export class CredentialIntakeService {
       throw new CustodyError('CUSTODY_UNWRAP_FAILED', 'The credential envelope could not be opened.');
     }
 
+    let vaultSecret: Buffer | null = null;
     try {
       const plaintext = secret.toString('utf8');
       if (plaintext.trim().length === 0) {
@@ -109,7 +110,8 @@ export class CredentialIntakeService {
         } satisfies CredentialIntakeResult;
       }
 
-      const fingerprint = credentialFingerprint(plaintext, this.deps.fingerprintKey);
+      vaultSecret = runtimeCredentialPayload(request.providerKey, plaintext, request.parameters);
+      const fingerprint = credentialFingerprint(vaultSecret.toString('utf8'), this.deps.fingerprintKey);
       const version = await this.deps.vault.nextVersion(request.tenantId, request.connectorKey);
 
       let written;
@@ -118,7 +120,7 @@ export class CredentialIntakeService {
           tenantId: request.tenantId,
           connectorKey: request.connectorKey,
           providerKey: request.providerKey,
-          secret,
+          secret: vaultSecret,
           custodyMode: request.custodyMode,
         });
       } catch (error) {
@@ -149,9 +151,49 @@ export class CredentialIntakeService {
       };
     } finally {
       // §2.2 step 8. Runs on every path, including a thrown probe error.
+      if (vaultSecret !== null) zeroise(vaultSecret);
       zeroise(secret);
     }
   }
+}
+
+/**
+ * Provider probes may need non-secret companion fields which are not useful to
+ * the control plane after intake, but some providers also require those values
+ * again at invocation time. Twilio is the canonical case: the auth token is
+ * secret while accountSid is supplied separately during probe, yet both are
+ * required to authenticate a send. Persist a provider-specific runtime bundle
+ * inside the vault rather than leaking companion values into connector rows.
+ */
+function runtimeCredentialPayload(
+  providerKey: string,
+  plaintextSecret: string,
+  parameters: Readonly<Record<string, string>>,
+): Buffer {
+  const normalizedProvider = providerKey.trim().toLowerCase();
+  if (
+    normalizedProvider === 'twilio'
+    || normalizedProvider === 'twilio-sms'
+    || normalizedProvider === 'twilio-whatsapp'
+    || normalizedProvider === 'twilio-voice'
+  ) {
+    const accountSid = parameters.accountSid?.trim() ?? '';
+    if (accountSid.length === 0) {
+      throw new CustodyError(
+        'CUSTODY_PAYLOAD_INVALID',
+        'Twilio Account SID is required for a runtime-capable credential.',
+      );
+    }
+    return Buffer.from(JSON.stringify({
+      accountSid,
+      authToken: plaintextSecret,
+      ...(parameters.messagingServiceSid?.trim()
+        ? { messagingServiceSid: parameters.messagingServiceSid.trim() }
+        : {}),
+    }), 'utf8');
+  }
+
+  return Buffer.from(plaintextSecret, 'utf8');
 }
 
 /**
