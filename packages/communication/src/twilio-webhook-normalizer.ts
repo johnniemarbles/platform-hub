@@ -12,6 +12,7 @@ export interface TwilioWebhookNormalizerOptions {
   readonly adapterKey: 'twilio-sms-whatsapp-v1' | 'twilio-voice-v1';
   readonly resolveAuthToken: (connectorKey: string) => Promise<string | undefined>;
   readonly getWebhookUrl: (request: CommunicationProviderWebhookRequest) => string;
+  readonly now?: () => string;
 }
 
 export class TwilioWebhookNormalizer implements CommunicationProviderWebhookNormalizer {
@@ -39,23 +40,16 @@ export class TwilioWebhookNormalizer implements CommunicationProviderWebhookNorm
     const bodyString = Buffer.from(request.rawBody).toString('utf8');
     const params = new URLSearchParams(bodyString);
     const paramObj: Record<string, string> = {};
-    for (const [key, value] of params.entries()) {
-      paramObj[key] = value;
-    }
+    for (const [key, value] of params.entries()) paramObj[key] = value;
 
     const url = this.options.getWebhookUrl(request);
-    
-    // Twilio signature calculation: url + sorted(keys) + values
     const sortedKeys = Object.keys(paramObj).sort();
     let dataToSign = url;
-    for (const key of sortedKeys) {
-      dataToSign += key + paramObj[key];
-    }
+    for (const key of sortedKeys) dataToSign += key + paramObj[key];
 
     const expectedSignature = createHmac('sha1', authToken)
       .update(dataToSign)
       .digest('base64');
-
     const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
     const signatureBuffer = Buffer.from(signature, 'utf8');
 
@@ -64,42 +58,43 @@ export class TwilioWebhookNormalizer implements CommunicationProviderWebhookNorm
     }
 
     let state: CommunicationProviderWebhookState | null = null;
-    let providerMessageId: string | undefined = undefined;
-    let channel: CommunicationChannel | undefined = undefined;
+    let providerMessageId: string | undefined;
+    let channel: CommunicationChannel | undefined;
+    let providerStatus: string | undefined;
 
     if (paramObj.MessageStatus) {
-      // SMS/WhatsApp
-      state = this.mapSmsState(paramObj.MessageStatus);
+      providerStatus = paramObj.MessageStatus;
+      state = this.mapSmsState(providerStatus);
       providerMessageId = paramObj.MessageSid;
-      channel = 'sms';
+      const whatsapp = [paramObj.To, paramObj.From].some(
+        (value) => typeof value === 'string' && value.toLowerCase().startsWith('whatsapp:'),
+      );
+      channel = whatsapp ? 'whatsapp' : 'sms';
     } else if (paramObj.CallStatus) {
-      // Voice
-      state = this.mapVoiceState(paramObj.CallStatus);
+      providerStatus = paramObj.CallStatus;
+      state = this.mapVoiceState(providerStatus);
       providerMessageId = paramObj.CallSid;
       channel = 'voice';
     }
 
-    if (!state) {
-      return { verified: true, events: [] };
+    if (!state) return { verified: true, events: [] };
+    if (!providerMessageId || !providerStatus || !channel) {
+      return { verified: false, reasonCode: 'WEBHOOK_PAYLOAD_INVALID', reason: 'Missing provider message id or status' };
     }
 
-    if (!providerMessageId) {
-      return { verified: false, reasonCode: 'WEBHOOK_PAYLOAD_INVALID', reason: 'Missing provider message id' };
-    }
-
+    // Twilio status callbacks do not include a distinct event id. Combining the
+    // provider message id with the status makes each lifecycle observation
+    // deterministic and replay-safe while still allowing sent → delivered.
     const event: CommunicationProviderDeliveryEvent = {
-      providerEventId: paramObj.MessageSid || paramObj.CallSid || Math.random().toString(),
+      providerEventId: `${providerMessageId}:${providerStatus.toLowerCase()}`,
       connectorKey: request.connectorKey,
       providerMessageId,
-      channel: channel as CommunicationChannel,
+      channel,
       state,
-      occurredAt: new Date().toISOString(), // Twilio webhooks typically don't have a timestamp, fallback to now
+      occurredAt: this.options.now?.() ?? new Date().toISOString(),
+      ...(paramObj.ErrorCode ? { reasonCode: paramObj.ErrorCode } : {}),
+      ...(paramObj.ErrorMessage ? { reason: paramObj.ErrorMessage } : {}),
     };
-
-    if (paramObj.ErrorCode || paramObj.ErrorMessage) {
-      (event as any).reasonCode = paramObj.ErrorCode;
-      (event as any).reason = paramObj.ErrorMessage;
-    }
 
     return { verified: true, events: [event] };
   }
@@ -110,7 +105,7 @@ export class TwilioWebhookNormalizer implements CommunicationProviderWebhookNorm
       case 'delivered': return 'DELIVERED';
       case 'undelivered':
       case 'failed': return 'FAILED';
-      default: return null; // queued, sending, etc.
+      default: return null;
     }
   }
 
@@ -121,11 +116,14 @@ export class TwilioWebhookNormalizer implements CommunicationProviderWebhookNorm
       case 'busy':
       case 'no-answer':
       case 'canceled': return 'FAILED';
-      default: return null; // queued, ringing, in-progress, etc.
+      default: return null;
     }
   }
 
-  private getHeader(headers: Readonly<Record<string, string | readonly string[] | undefined>>, key: string): string | undefined {
+  private getHeader(
+    headers: Readonly<Record<string, string | readonly string[] | undefined>>,
+    key: string,
+  ): string | undefined {
     const val = headers[key] || headers[key.toLowerCase()];
     if (Array.isArray(val)) return val[0];
     return val as string | undefined;

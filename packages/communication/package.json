@@ -33,7 +33,8 @@
     "./sender": "./src/sender.ts",
     "./provider-send-request": "./src/provider-send-request.ts",
     "./twilio-sms-whatsapp-adapter": "./src/twilio-sms-whatsapp-adapter.ts",
-    "./twilio-voice-adapter": "./src/twilio-voice-adapter.ts"
+    "./twilio-voice-adapter": "./src/twilio-voice-adapter.ts",
+    "./governed-twilio-binding": "./src/governed-twilio-binding.ts"
   },
   "dependencies": {
     "@platform-hub/provider-registry": "workspace:*",
