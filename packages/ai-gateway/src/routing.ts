@@ -25,6 +25,7 @@ export type RoutedAiGatewayErrorCode =
   | 'AI_CONNECTOR_UNAVAILABLE'
   | 'AI_ADAPTER_NOT_REGISTERED'
   | 'AI_PROPOSAL_INVALID'
+  | 'AI_COST_EVIDENCE_REQUIRED'
   | 'AI_COST_LIMIT_EXCEEDED';
 
 export class RoutedAiGatewayError extends Error {

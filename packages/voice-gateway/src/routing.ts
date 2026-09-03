@@ -25,6 +25,7 @@ export type RoutedVoiceGatewayErrorCode =
   | 'VOICE_CONNECTOR_UNAVAILABLE'
   | 'VOICE_ADAPTER_NOT_REGISTERED'
   | 'VOICE_OBSERVATION_INVALID'
+  | 'VOICE_COST_EVIDENCE_REQUIRED'
   | 'VOICE_COST_LIMIT_EXCEEDED';
 
 export class RoutedVoiceGatewayError extends Error {
