@@ -96,6 +96,7 @@ export class HttpContentAssetScanner implements ContentAssetScanner {
       },
       body: JSON.stringify(input),
       cache: 'no-store',
+      redirect: 'error',
     });
     if (!response.ok) throw new Error(`CONTENT_ASSET_SCAN_PROVIDER_FAILED:${response.status}`);
 
