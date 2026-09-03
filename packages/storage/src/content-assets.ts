@@ -136,7 +136,7 @@ export function validateContentAssetRegistration(value: unknown): ValidatedConte
 
 const TRANSITIONS: Readonly<Record<ContentAssetState, readonly ContentAssetState[]>> = {
   PENDING_UPLOAD: ['UPLOADED', 'REJECTED', 'DELETED'],
-  UPLOADED: ['QUARANTINED', 'AVAILABLE', 'REJECTED', 'DELETED'],
+  UPLOADED: ['QUARANTINED', 'REJECTED', 'DELETED'],
   QUARANTINED: ['AVAILABLE', 'REJECTED', 'DELETED'],
   AVAILABLE: ['QUARANTINED', 'DELETED'],
   REJECTED: ['DELETED'],
