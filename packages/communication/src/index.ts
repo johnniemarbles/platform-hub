@@ -2,6 +2,8 @@ export * from './conversation.ts';
 export * from './suppression.ts';
 export * from './consent.ts';
 export * from './template.ts';
+export * from './content-policy.ts';
+export * from './html-sanitizer.ts';
 
 export type CommunicationChannel =
   | 'email'
@@ -290,6 +292,7 @@ export function recipientSupportsChannel(
 function nonBlank(value: string | undefined): boolean {
   return value !== undefined && value.trim().length > 0;
 }
+
 export * from './webhook-ingestion.ts';
 export * from './resend-webhook-normalizer.ts';
 export * from './twilio-webhook-normalizer.ts';

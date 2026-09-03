@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { CommunicationTemplate } from '../src/template.ts';
+import { sanitizeCommunicationHtml } from '../src/html-sanitizer.ts';
 import { renderCommunicationTemplate } from '../src/template-renderer.ts';
 
 const template: CommunicationTemplate = {
@@ -108,4 +109,51 @@ test('renders false and zero without treating them as missing', () => {
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.equal(result.rendered.body, 'active=false count=0');
+});
+
+test('HTML template variables are escaped before provider output', () => {
+  const result = renderCommunicationTemplate({
+    template,
+    variables: {
+      person: { name: '<img src=x onerror=alert(1)>' },
+      case: { status: '<script>alert(2)</script>' },
+    },
+  });
+
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(
+    result.rendered.body,
+    '<p>&lt;img src=x onerror=alert(1)&gt;, your case is &lt;script&gt;alert(2)&lt;/script&gt;.</p>',
+  );
+});
+
+test('HTML sanitizer removes blocked elements, contents, unsafe URLs and unsafe attributes', () => {
+  const sanitized = sanitizeCommunicationHtml(
+    '<div onclick="steal()"><script>alert(1)</script><a href="javascript:alert(2)" target="_blank">open</a><img src="https://cdn.example/logo.png" onerror="steal()"></div>',
+  );
+
+  assert.equal(sanitized.html.value, '<div><a target="_blank" rel="noopener noreferrer">open</a><img src="https://cdn.example/logo.png"></div>');
+  assert.ok(sanitized.violations.some((violation) => violation.code === 'UNSAFE_HTML_ELEMENT'));
+  assert.ok(sanitized.violations.some((violation) => violation.code === 'UNSAFE_HTML_ATTRIBUTE'));
+  assert.ok(sanitized.violations.some((violation) => violation.code === 'UNSAFE_HTML_URL'));
+});
+
+test('rendered HTML is centrally sanitized before adapters receive it', () => {
+  const result = renderCommunicationTemplate({
+    template: {
+      ...template,
+      content: {
+        ...template.content,
+        body: '<p>Hello {{person.name}}</p><iframe src="https://evil.example">payload</iframe><a href="javascript:alert(1)">bad</a>',
+      },
+    },
+    variables: { person: { name: 'Maya' } },
+  });
+
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.rendered.body, '<p>Hello Maya</p><a>bad</a>');
+  assert.ok(result.rendered.contentPolicyViolations?.some((violation) => violation.code === 'UNSAFE_HTML_ELEMENT'));
+  assert.ok(result.rendered.contentPolicyViolations?.some((violation) => violation.code === 'UNSAFE_HTML_URL'));
 });

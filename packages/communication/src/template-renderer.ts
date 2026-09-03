@@ -1,4 +1,6 @@
 import type { CommunicationTemplate } from './template.ts';
+import { escapeHtmlText, type CommunicationContentPolicyViolation } from './content-policy.ts';
+import { sanitizeCommunicationHtml } from './html-sanitizer.ts';
 
 const PLACEHOLDER_PATTERN = /\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g;
 
@@ -17,6 +19,7 @@ export interface RenderedCommunicationTemplate {
   readonly title?: string;
   readonly body: string;
   readonly variables: Readonly<Record<string, unknown>>;
+  readonly contentPolicyViolations?: readonly CommunicationContentPolicyViolation[];
 }
 
 export type CommunicationTemplateRenderResult =
@@ -33,7 +36,9 @@ export type CommunicationTemplateRenderResult =
 /**
  * Pure, provider-neutral renderer. Runtime variables override template defaults.
  * Every referenced placeholder must resolve; the renderer fails closed rather
- * than silently removing unresolved content.
+ * than silently removing unresolved content. HTML output is sanitized centrally
+ * before any provider adapter can receive it, and variable substitutions are
+ * HTML-escaped by default inside HTML templates.
  */
 export function renderCommunicationTemplate(
   input: CommunicationTemplateRenderInput,
@@ -63,8 +68,11 @@ export function renderCommunicationTemplate(
     };
   }
 
-  const subject = renderSource(input.template.content.subject, variables);
-  const title = renderSource(input.template.content.title, variables);
+  const html = input.template.content.format === 'HTML';
+  const subject = renderSource(input.template.content.subject, variables, false);
+  const title = renderSource(input.template.content.title, variables, false);
+  const rawBody = renderSource(input.template.content.body, variables, html) ?? '';
+  const sanitized = html ? sanitizeCommunicationHtml(rawBody) : null;
 
   return {
     ok: true,
@@ -76,8 +84,11 @@ export function renderCommunicationTemplate(
       format: input.template.content.format,
       ...(subject === undefined ? {} : { subject }),
       ...(title === undefined ? {} : { title }),
-      body: renderSource(input.template.content.body, variables) ?? '',
+      body: sanitized?.html.value ?? rawBody,
       variables,
+      ...(sanitized === null || sanitized.violations.length === 0
+        ? {}
+        : { contentPolicyViolations: sanitized.violations }),
     },
   };
 }
@@ -93,11 +104,13 @@ function collectPlaceholders(source: string | undefined, target: Set<string>): v
 function renderSource(
   source: string | undefined,
   variables: Readonly<Record<string, unknown>>,
+  htmlContext: boolean,
 ): string | undefined {
   if (source === undefined) return undefined;
   return source.replace(PLACEHOLDER_PATTERN, (_match, key: string) => {
     const value = lookupVariable(variables, key);
-    return stringifyVariable(value);
+    const text = stringifyVariable(value);
+    return htmlContext ? escapeHtmlText(text) : text;
   });
 }
 
