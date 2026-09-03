@@ -83,3 +83,14 @@ test('object references are opaque, deterministic and scope-bound', () => {
     `content-assets/${tenantId}/${organizationId}/${assetId}`,
   );
 });
+
+
+test('uploaded assets cannot bypass quarantine to become available', () => {
+  assert.throws(
+    () => assertContentAssetTransition('UPLOADED', 'AVAILABLE'),
+    (error: unknown) => error instanceof ContentAssetValidationError
+      && error.code === 'INVALID_STATE_TRANSITION',
+  );
+  assert.doesNotThrow(() => assertContentAssetTransition('UPLOADED', 'QUARANTINED'));
+  assert.doesNotThrow(() => assertContentAssetTransition('QUARANTINED', 'AVAILABLE'));
+});
