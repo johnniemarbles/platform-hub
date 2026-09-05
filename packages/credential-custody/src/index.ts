@@ -11,11 +11,11 @@
  * Nothing here may be imported by the control-plane API tier.
  */
 
-export * from './fingerprint.ts';
-export * from './wrapping.ts';
-export * from './probe.ts';
-export * from './secret-vault.ts';
-export * from './intake.ts';
+export * from './fingerprint.js';
+export * from './wrapping.js';
+export * from './probe.js';
+export * from './secret-vault.js';
+export * from './intake.js';
 
 /** §2.1 — the four trust postures. Not one capability; four. */
 export type CustodyMode =
@@ -89,4 +89,4 @@ export function failurePolicyPermitsFallback(input: {
   if (input.residencyPinned) return false;
   return input.purpose !== 'marketing';
 }
-export * from './revocation.ts';
+export * from './revocation.js';
