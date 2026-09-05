@@ -39,6 +39,28 @@ test('tenant-owned connector is invisible to another tenant', () => {
   assert.deepEqual(result.considered, []);
 });
 
+test('tenant-owned connector is visible to every entity node in that tenant (provider credential inheritance)', () => {
+  // EXPADIO's org hierarchy (Brand HQ, Country OpCo, State Master, Unit) is
+  // modeled as entity_nodes *within one tenant*, not as separate tenants.
+  // routeConnector() has no node-scoping concept at all — it filters by
+  // tenantId only — so a connector configured once at the tenant level is
+  // already inherited by every node in that tenant's hierarchy without any
+  // additional resolution step. This pins that property down: the request
+  // shape below is identical to what a Country OpCo node, a State Master
+  // node, and a Unit node would each construct for the same tenant, and all
+  // three resolve to the one tenant-owned connector.
+  const connectors = [connector({ connectorKey: 'brand-hq-email', ownership: 'TENANT', tenantId: 'tenant-brand' })];
+
+  const asCountryOpco = routeConnector({ tenantId: 'tenant-brand', capabilityKey: 'email.delivery' }, connectors);
+  const asStateMaster = routeConnector({ tenantId: 'tenant-brand', capabilityKey: 'email.delivery' }, connectors);
+  const asUnit = routeConnector({ tenantId: 'tenant-brand', capabilityKey: 'email.delivery' }, connectors);
+
+  for (const result of [asCountryOpco, asStateMaster, asUnit]) {
+    assert.equal(result.connector?.connectorKey, 'brand-hq-email');
+    assert.equal(result.reason, 'ROUTED');
+  }
+});
+
 test('routing fails closed when residency or compliance requirements are not met', () => {
   const result = routeConnector(
     {

@@ -16,6 +16,28 @@ export function credentialReference(value: string): CredentialReference {
   return trimmed as CredentialReference;
 }
 
+/**
+ * Provider credential inheritance across the entity graph.
+ *
+ * EXPADIO's org hierarchy (Brand HQ / Country OpCo / State Master / Unit) is
+ * modeled as platform.entity_nodes *within a single tenant* — a tenant is a
+ * brand's whole account, not one node in its org tree. Because routeConnector()
+ * below scopes connectors by tenantId only (never by node), a connector
+ * configured once with ownership: 'TENANT' is already visible to every entity
+ * node in that tenant's hierarchy, with no additional inheritance mechanism
+ * needed: a child node never re-enters credentials because there is no
+ * per-node filter for it to fail. See provider-registry.test.ts's
+ * "tenant-owned connector is visible to every entity node in that tenant"
+ * for the pinning test, and packages/entity/src/governance-policy.ts for the
+ * unrelated per-node CONFIGURATION concern (publishing policy) that *does*
+ * vary by node and is resolved via a separate, explicit inheritance walk.
+ *
+ * Do not add a parallel node-scoped credential-resolution function or a raw
+ * SQL path that reads a connector's credential reference directly — every
+ * credential access must go through routeConnector() → a governed credential
+ * lease (see credential-access.ts / short-lived-credential-lease-issuer.ts),
+ * which is the only place secret expiry and lease auditing are enforced.
+ */
 export interface ConnectorDefinition {
   readonly connectorKey: string;
   readonly providerType: string;
