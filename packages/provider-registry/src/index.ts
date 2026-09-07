@@ -32,6 +32,13 @@ export function credentialReference(value: string): CredentialReference {
  * unrelated per-node CONFIGURATION concern (publishing policy) that *does*
  * vary by node and is resolved via a separate, explicit inheritance walk.
  *
+ * Platform-owned connectors are intentionally different: they are visible to a
+ * tenant request only when the connector is explicitly marked
+ * fallbackEnabled, or when that tenant's routing policy allow-lists the exact
+ * connector key. This makes the platform-level Resend, Twilio, and Cloudflare
+ * infrastructure reusable by tenants without turning every platform credential
+ * into an implicit tenant fallback.
+ *
  * Do not add a parallel node-scoped credential-resolution function or a raw
  * SQL path that reads a connector's credential reference directly — every
  * credential access must go through routeConnector() → a governed credential
@@ -99,7 +106,7 @@ export function routeConnector(
 
   const considered = connectors
     .filter((connector) => connector.capabilityKeys.includes(request.capabilityKey))
-    .filter((connector) => connector.ownership === 'PLATFORM' || connector.tenantId === request.tenantId);
+    .filter((connector) => connectorIsVisibleToTenantRequest(connector, request, policy));
 
   if (considered.length > 0 && considered.every((connector) => !connector.enabled)) {
     return {
@@ -128,6 +135,21 @@ export function routeConnector(
     considered: considered.map((entry) => entry.connectorKey),
     rejected: Object.fromEntries(rejected.entries()),
   };
+}
+
+function connectorIsVisibleToTenantRequest(
+  connector: ConnectorDefinition,
+  request: ConnectorRouteRequest,
+  policy?: RoutingPolicy,
+): boolean {
+  if (connector.ownership === 'TENANT') {
+    return connector.tenantId === request.tenantId;
+  }
+  if (connector.ownership !== 'PLATFORM') {
+    return false;
+  }
+  return connector.fallbackEnabled
+    || policy?.allowedConnectorKeys?.includes(connector.connectorKey) === true;
 }
 
 function rejectionReasons(
