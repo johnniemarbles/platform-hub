@@ -398,7 +398,42 @@ export const vonageProbe: CredentialProbe = {
   },
 };
 
+/** Cloudflare — verifies an API token without performing a DNS mutation. */
+export const cloudflareProbe: CredentialProbe = {
+  providerKey: 'cloudflare',
+  async probe(input) {
+    const fetchImpl = input.fetchImpl ?? fetch;
+    const result = await call(fetchImpl, 'https://api.cloudflare.com/client/v4/user/tokens/verify', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${input.secret}` },
+    });
+    const body = result.body as {
+      success?: boolean;
+      result?: { status?: string };
+      errors?: { message?: string }[];
+    } | null;
+    if (!result.ok || body?.success === false || body?.result?.status !== 'active') {
+      return {
+        valid: false,
+        providerKey: 'cloudflare',
+        detectedCapabilities: [],
+        warnings: [],
+        error: body?.errors?.[0]?.message ?? result.error ?? `Cloudflare returned HTTP ${result.status}.`,
+        checkedAt: nowIso(input),
+      };
+    }
+    return {
+      valid: true,
+      providerKey: 'cloudflare',
+      detectedCapabilities: ['infrastructure.dns.configure'],
+      warnings: [],
+      checkedAt: nowIso(input),
+    };
+  },
+};
+
 export const PROBE_REGISTRY: Readonly<Record<string, CredentialProbe>> = {
+  cloudflare: cloudflareProbe,
   twilio: twilioProbe,
   'twilio-sms': twilioProbe,
   'twilio-whatsapp': twilioProbe,
