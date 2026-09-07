@@ -398,35 +398,134 @@ export const vonageProbe: CredentialProbe = {
   },
 };
 
-/** Cloudflare — verifies an API token without performing a DNS mutation. */
+/** Cloudflare — verifies an API token and, when scoped, read access to the target zone. */
+function cloudflarePolicyPermissionNames(body: {
+  result?: {
+    policies?: Array<{
+      permission_groups?: Array<{ name?: unknown }>;
+    }>;
+  };
+} | null): string[] {
+  return (body?.result?.policies ?? [])
+    .flatMap((policy) => policy.permission_groups ?? [])
+    .map((group) => String(group.name ?? '').trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function candidateCloudflareZoneNames(domain: string): string[] {
+  const labels = domain.split('.').filter(Boolean);
+  const candidates: string[] = [];
+  for (let i = 0; i + 1 < labels.length; i += 1) {
+    candidates.push(labels.slice(i).join('.'));
+  }
+  return candidates.length > 0 ? candidates : [domain];
+}
+
 export const cloudflareProbe: CredentialProbe = {
   providerKey: 'cloudflare',
   async probe(input) {
     const fetchImpl = input.fetchImpl ?? fetch;
-    const result = await call(fetchImpl, 'https://api.cloudflare.com/client/v4/user/tokens/verify', {
+    const verify = await call(fetchImpl, 'https://api.cloudflare.com/client/v4/user/tokens/verify', {
       method: 'GET',
       headers: { Authorization: `Bearer ${input.secret}` },
     });
-    const body = result.body as {
+    const body = verify.body as {
       success?: boolean;
-      result?: { status?: string };
+      result?: {
+        status?: string;
+        policies?: Array<{
+          permission_groups?: Array<{ name?: unknown }>;
+        }>;
+      };
       errors?: { message?: string }[];
     } | null;
-    if (!result.ok || body?.success === false || body?.result?.status !== 'active') {
+    if (!verify.ok || body?.success === false || body?.result?.status !== 'active') {
       return {
         valid: false,
         providerKey: 'cloudflare',
         detectedCapabilities: [],
         warnings: [],
-        error: body?.errors?.[0]?.message ?? result.error ?? `Cloudflare returned HTTP ${result.status}.`,
+        error: body?.errors?.[0]?.message ?? verify.error ?? `Cloudflare returned HTTP ${verify.status}.`,
         checkedAt: nowIso(input),
       };
     }
+
+    const permissionNames = cloudflarePolicyPermissionNames(body);
+    const declaresDnsEdit = permissionNames.some((name) => name === 'dns edit');
+    const domain = (input.parameters.domain ?? input.parameters.zoneName ?? '').trim().toLowerCase();
+    let zoneReadable = false;
+    let zoneError: string | undefined;
+
+    if (input.parameters.zoneId !== undefined && input.parameters.zoneId.trim() !== '') {
+      const zone = await call(
+        fetchImpl,
+        `https://api.cloudflare.com/client/v4/zones/${encodeURIComponent(input.parameters.zoneId.trim())}`,
+        {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${input.secret}` },
+        },
+      );
+      zoneReadable = zone.ok;
+      if (!zone.ok) {
+        const zoneBody = zone.body as { errors?: { message?: string }[] } | null;
+        zoneError = zoneBody?.errors?.[0]?.message ?? zone.error ?? `Cloudflare zone lookup returned HTTP ${zone.status}.`;
+      }
+    } else if (domain !== '') {
+      for (const candidate of candidateCloudflareZoneNames(domain)) {
+        const zone = await call(
+          fetchImpl,
+          `https://api.cloudflare.com/client/v4/zones?name=${encodeURIComponent(candidate)}&status=active`,
+          {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${input.secret}` },
+          },
+        );
+        const zoneBody = zone.body as { result?: unknown[]; errors?: { message?: string }[] } | null;
+        if (zone.ok && Array.isArray(zoneBody?.result) && zoneBody.result.length > 0) {
+          zoneReadable = true;
+          break;
+        }
+        if (!zone.ok) {
+          zoneError = zoneBody?.errors?.[0]?.message ?? zone.error ?? `Cloudflare zone lookup returned HTTP ${zone.status}.`;
+          break;
+        }
+      }
+    }
+
+    const warnings: ProbeWarning[] = [];
+    if (domain !== '' || input.parameters.zoneId !== undefined) {
+      if (!zoneReadable) {
+        return {
+          valid: false,
+          providerKey: 'cloudflare',
+          detectedCapabilities: [],
+          warnings: [],
+          error: zoneError ?? 'Cloudflare token is active but cannot read the target zone.',
+          checkedAt: nowIso(input),
+        };
+      }
+    } else {
+      warnings.push({
+        code: 'CLOUDFLARE_ZONE_NOT_SCOPED',
+        severity: 'WARNING',
+        message: 'Cloudflare token is active, but no domain or zone was supplied, so EXPADIO could not confirm zone access during intake.',
+      });
+    }
+
+    if (!declaresDnsEdit) {
+      warnings.push({
+        code: 'CLOUDFLARE_DNS_EDIT_NOT_CONFIRMED',
+        severity: 'WARNING',
+        message: 'Cloudflare did not expose DNS Edit in the token verification response. Confirm the token has Zone Read and DNS Edit for the sending-domain zone before enabling automation.',
+      });
+    }
+
+    const capabilityConfirmed = zoneReadable && (declaresDnsEdit || permissionNames.length === 0);
     return {
       valid: true,
       providerKey: 'cloudflare',
-      detectedCapabilities: ['infrastructure.dns.configure'],
-      warnings: [],
+      detectedCapabilities: capabilityConfirmed ? ['infrastructure.dns.configure'] : [],
+      warnings,
       checkedAt: nowIso(input),
     };
   },
