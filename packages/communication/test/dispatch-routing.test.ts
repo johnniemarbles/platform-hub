@@ -70,6 +70,36 @@ test('routes through Provider Registry and returns metadata without credentialRe
   assert.equal('credentialRef' in result.connector, false);
 });
 
+test('does not use platform connectors as tenant fallback until explicitly enabled', () => {
+  const result = routePreparedCommunicationDispatch(
+    dispatch,
+    [connector({ connectorKey: 'platform-email-private', fallbackEnabled: false })],
+  );
+
+  assert.equal(result.routed, false);
+  if (result.routed) return;
+  assert.equal(result.reasonCode, 'NOT_CONFIGURED');
+  assert.deepEqual(result.considered, []);
+});
+
+test('allows a tenant routing policy to bind one platform connector without broad fallback', () => {
+  const policy: RoutingPolicy = {
+    tenantId: dispatch.tenantId,
+    capabilityKey: dispatch.routing.capabilityKey,
+    allowedConnectorKeys: ['platform-email-private'],
+  };
+  const result = routePreparedCommunicationDispatch(
+    dispatch,
+    [connector({ connectorKey: 'platform-email-private', fallbackEnabled: false })],
+    policy,
+  );
+
+  assert.equal(result.routed, true);
+  if (!result.routed) return;
+  assert.equal(result.connector.connectorKey, 'platform-email-private');
+  assert.equal(result.connector.ownership, 'PLATFORM');
+});
+
 test('honors tenant-owned preference through the existing routing policy', () => {
   const tenantConnector = connector({
     connectorKey: 'tenant-email',
