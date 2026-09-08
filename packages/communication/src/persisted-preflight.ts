@@ -24,13 +24,17 @@ export interface PersistedCommunicationPreflightInput {
  * deterministic decision to the pure communication preflight evaluator.
  * Repository errors are intentionally not swallowed: unavailable compliance
  * evidence must never be interpreted as permission to send.
+ * System-purpose traffic (certification, operational probes) does not require
+ * recipient marketing consent.
  */
 export async function evaluatePersistedCommunicationPreflight(
   input: PersistedCommunicationPreflightInput,
 ): Promise<CommunicationPreflightDecision> {
   const identity = resolveCommunicationIntentIdentity(input.intent);
   const metadata = communicationChannelMetadata(identity.channel);
-  const consentRequired = input.intent.consentRequired || metadata.requiresConsent;
+  const consentRequired =
+    input.intent.purpose !== 'system'
+    && (input.intent.consentRequired || metadata.requiresConsent);
 
   const consent = consentRequired
     ? await input.repositories.consent.resolveEffective({

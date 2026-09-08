@@ -153,7 +153,9 @@ export function evaluateCommunicationPreflight(
     };
   }
 
-  const consentRequired = input.intent.consentRequired || metadata.requiresConsent;
+  const consentRequired =
+    input.intent.purpose !== 'system'
+    && (input.intent.consentRequired || metadata.requiresConsent);
   if (consentRequired && input.consentGranted !== true) {
     return {
       allowed: false,
@@ -231,11 +233,6 @@ export function resolveCommunicationIntentIdentity(
   };
 }
 
-/**
- * Preserves BEMP's email -> WhatsApp -> SMS default precedence. Shared phone
- * addressing never implicitly selects voice or RCS, and subject identity never
- * implicitly selects push or social; those channels require explicit routing policy.
- */
 export function inferDefaultCommunicationChannel(
   recipient: CommunicationRecipient,
 ): CommunicationChannel | null {
