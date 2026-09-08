@@ -200,12 +200,21 @@ export function defaultCommunicationAdapterKey(input: {
     return 'resend-email-v1';
   }
   if (
-    providerKey === 'twilio'
-    && (input.channel === 'sms' || input.channel === 'whatsapp')
+    (providerKey === 'twilio' || providerKey === 'twilio-sms')
+    && input.channel === 'sms'
   ) {
     return 'twilio-sms-whatsapp-v1';
   }
-  if (providerKey === 'twilio' && input.channel === 'voice') {
+  if (
+    (providerKey === 'twilio' || providerKey === 'twilio-whatsapp')
+    && input.channel === 'whatsapp'
+  ) {
+    return 'twilio-sms-whatsapp-v1';
+  }
+  if (
+    (providerKey === 'twilio' || providerKey === 'twilio-voice')
+    && input.channel === 'voice'
+  ) {
     return 'twilio-voice-v1';
   }
   if (providerKey === 'linkedin' && input.channel === 'social') {
