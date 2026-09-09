@@ -119,8 +119,10 @@ test('fails closed when the provider reports cost over the ceiling', async () =>
       return proposal(connector, 11);
     },
   };
+  // fallbackEnabled:true makes the PLATFORM connector visible without a tenant policy
+  const costConnector: ConnectorDefinition = { ...platformConnector, fallbackEnabled: true };
   const gateway = new RoutedAiGateway({
-    connectors: [platformConnector],
+    connectors: [costConnector],
     adapters: new Map([['platform-ai', adapter]]),
   });
 

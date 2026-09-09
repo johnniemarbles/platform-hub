@@ -19,7 +19,8 @@ const deepgramConnector: ConnectorDefinition = {
   health: "HEALTHY",
   priority: 100,
   enabled: true,
-  fallbackEnabled: false,
+  // fallbackEnabled:true makes this PLATFORM connector visible without a tenant policy
+  fallbackEnabled: true,
   region: "us-east-1",
 };
 
@@ -34,7 +35,8 @@ const elevenLabsConnector: ConnectorDefinition = {
   health: "HEALTHY",
   priority: 100,
   enabled: true,
-  fallbackEnabled: false,
+  // fallbackEnabled:true makes this PLATFORM connector visible without a tenant policy
+  fallbackEnabled: true,
   region: "us-east-1",
 };
 
