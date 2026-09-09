@@ -23,7 +23,13 @@ export interface CommunicationPayloadStore {
   load(tenantId: string, deliveryId: string): Promise<PreparedCommunicationDispatch>;
 }
 
-export interface CommunicationQueueWorkerConfig {
+export interface WorkerOptions {
+  plane: 'TRANSACTIONAL' | 'BULK';
+  batchSize?: number;
+  workerId: string;
+}
+
+export interface CommunicationQueueWorkerConfig extends WorkerOptions {
   readonly pool: PostgresPool;
   readonly dispatchPort: CommunicationDispatchPort;
   readonly payloadStore: CommunicationPayloadStore;
@@ -31,8 +37,9 @@ export interface CommunicationQueueWorkerConfig {
   readonly maxAttempts?: number;
 }
 
-export class CommunicationQueueWorker {
+export class GovernedQueueWorker {
   readonly #pool: PostgresPool;
+  readonly #options: WorkerOptions;
   readonly #dispatchPort: CommunicationDispatchPort;
   readonly #payloadStore: CommunicationPayloadStore;
   readonly #pollIntervalMs: number;
@@ -42,6 +49,13 @@ export class CommunicationQueueWorker {
 
   constructor(config: CommunicationQueueWorkerConfig) {
     this.#pool = config.pool;
+    this.#options = {
+      plane: config.plane,
+      workerId: config.workerId
+    };
+    if (config.batchSize !== undefined) {
+      this.#options.batchSize = config.batchSize;
+    }
     this.#dispatchPort = config.dispatchPort;
     this.#payloadStore = config.payloadStore;
     this.#pollIntervalMs = config.pollIntervalMs ?? 5000;
@@ -65,41 +79,83 @@ export class CommunicationQueueWorker {
   #scheduleNext(): void {
     if (!this.#running) return;
     this.#timer = setTimeout(() => {
-      this.#poll().finally(() => {
+      this.claimNextBatch().finally(() => {
         this.#scheduleNext();
       });
     }, this.#pollIntervalMs);
   }
 
-  async #poll(): Promise<void> {
+  /**
+   * Claims pending delivery jobs strictly matching the worker's assigned plane.
+   * Transactional workers never process bulk queues, and bulk workers never starve OTPs.
+   */
+  async claimNextBatch(): Promise<any[]> {
     const client = await this.#pool.connect();
+    const batchSize = this.#options.batchSize || 10;
+    
     try {
       await client.query('BEGIN');
       
-      // Select one pending delivery with a transaction-safe lock
-      const result = await client.query(`
-        SELECT delivery_id, tenant_id, attempt_count, state
-          FROM platform.communication_deliveries
-         WHERE state = 'PENDING'
-         LIMIT 1
-           FOR UPDATE SKIP LOCKED
-      `);
+      // Strict two-plane queue isolation with SKIP LOCKED
+      const claimQuery = `
+        SELECT id, tenant_id, organization_id, channel, connector_id, payload, attempts, delivery_id, attempt_count
+        FROM platform.communication_deliveries
+        WHERE state = 'PENDING'
+          AND plane = $1
+          AND (scheduled_for IS NULL OR scheduled_for <= NOW())
+          AND (expires_at IS NULL OR expires_at > NOW())
+        ORDER BY priority DESC, created_at ASC
+        LIMIT $2
+        FOR UPDATE SKIP LOCKED;
+      `;
+      
+      const res = await client.query(claimQuery, [this.#options.plane, batchSize]);
+      
+      if (res.rows.length > 0) {
+        const ids = res.rows.map((r: any) => r.id || r.delivery_id);
+        
+        await client.query(`
+          UPDATE platform.communication_deliveries
+             SET state = 'PROCESSING',
+                 lease_holder = $1,
+                 lease_expires_at = NOW() + INTERVAL '45 seconds',
+                 updated_at = NOW()
+           WHERE (id = ANY($2::uuid[]) OR delivery_id = ANY($2::uuid[]));
+        `, [this.#options.workerId, ids]);
 
-      if (result.rows.length === 0) {
-        await client.query('ROLLBACK');
-        return; // No pending deliveries
+        await client.query('COMMIT');
+        
+        // Process claimed batch
+        for (const row of res.rows as any[]) {
+          await this.#processRow(row);
+        }
+        
+        return res.rows as any[];
       }
+      
+      await client.query('COMMIT');
+      return [];
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error processing communication queue:', error);
+      throw error;
+    } finally {
+      client.release?.();
+    }
+  }
 
-      const row = result.rows[0] as any;
-      const deliveryId = row.delivery_id;
-      const tenantId = row.tenant_id;
-      let attemptCount = row.attempt_count || 0;
+  async #processRow(row: any): Promise<void> {
+    const deliveryId = row.delivery_id || row.id;
+    const tenantId = row.tenant_id;
+    let attemptCount = row.attempt_count || 0;
 
-      const payload = await this.#payloadStore.load(tenantId, deliveryId);
-      const dispatchResult = await this.#dispatchPort.dispatch(payload);
+    const payload = await this.#payloadStore.load(tenantId, deliveryId);
+    const dispatchResult = await this.#dispatchPort.dispatch(payload);
 
-      const occurredAt = new Date().toISOString();
-
+    const occurredAt = new Date().toISOString();
+    const client = await this.#pool.connect();
+    
+    try {
       if (dispatchResult.state === 'SENT' || dispatchResult.state === 'QUEUED') {
         const toState: CommunicationDeliveryState = dispatchResult.state === 'QUEUED' ? 'ACCEPTED' : 'SENT';
         
@@ -112,11 +168,10 @@ export class CommunicationQueueWorker {
                  last_reason = $6,
                  accepted_at = CASE WHEN $3 = 'ACCEPTED' THEN COALESCE(accepted_at, $7) ELSE accepted_at END,
                  updated_at = $7
-           WHERE tenant_id = $1::uuid AND delivery_id = $2::uuid
+           WHERE tenant_id = $1::uuid AND (delivery_id = $2::uuid OR id = $2::uuid)
         `, [tenantId, deliveryId, toState, dispatchResult.messageId ?? null, dispatchResult.reasonCode, dispatchResult.refusalReason ?? null, occurredAt]);
 
       } else {
-        // REFUSED or FAILED
         const isRetryable = [
           'PROVIDER_UNAVAILABLE',
           'RATE_LIMITED',
@@ -126,18 +181,17 @@ export class CommunicationQueueWorker {
         attemptCount++;
 
         if (isRetryable && attemptCount < this.#maxAttempts) {
-          // Retryable failure - keep in PENDING or update attempt count
           const delayMs = Math.pow(2, attemptCount) * 1000;
           await client.query(`
             UPDATE platform.communication_deliveries
-               SET attempt_count = attempt_count + 1,
+               SET state = 'PENDING',
+                   attempt_count = attempt_count + 1,
                    last_reason_code = $3,
                    last_reason = $4,
                    updated_at = NOW() + (interval '1 millisecond' * $5)
-             WHERE tenant_id = $1::uuid AND delivery_id = $2::uuid
+             WHERE tenant_id = $1::uuid AND (delivery_id = $2::uuid OR id = $2::uuid)
           `, [tenantId, deliveryId, dispatchResult.reasonCode, dispatchResult.refusalReason ?? null, delayMs]);
         } else {
-          // Terminal failure
           await client.query(`
             UPDATE platform.communication_deliveries
                SET state = 'FAILED',
@@ -145,15 +199,10 @@ export class CommunicationQueueWorker {
                    last_reason_code = $3,
                    last_reason = $4,
                    updated_at = $5
-             WHERE tenant_id = $1::uuid AND delivery_id = $2::uuid
+             WHERE tenant_id = $1::uuid AND (delivery_id = $2::uuid OR id = $2::uuid)
           `, [tenantId, deliveryId, dispatchResult.reasonCode, dispatchResult.refusalReason ?? null, occurredAt]);
         }
       }
-
-      await client.query('COMMIT');
-    } catch (error) {
-      await client.query('ROLLBACK');
-      console.error('Error processing communication queue:', error);
     } finally {
       client.release?.();
     }
