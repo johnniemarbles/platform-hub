@@ -14,6 +14,10 @@ export const CONTENT_ASSET_PURPOSES = [
   'COMMUNICATION_ATTACHMENT',
   'KNOWLEDGE_SOURCE',
   'DOMAIN_DOCUMENT',
+  // Images attached to an outbound social post. On the same pipeline as every
+  // other file the platform holds, so a picture bound for a brand's public page
+  // is scanned, retained and residency-tagged like anything else.
+  'SOCIAL_MEDIA',
 ] as const;
 export type ContentAssetPurpose = (typeof CONTENT_ASSET_PURPOSES)[number];
 
