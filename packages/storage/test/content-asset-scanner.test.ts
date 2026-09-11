@@ -6,13 +6,16 @@ const tenantId = 'c56a4180-65aa-42ec-a945-5fd21dec0538';
 const organizationId = 'c56a4180-65aa-42ec-a945-5fd21dec0539';
 const assetId = 'c56a4180-65aa-42ec-a945-5fd21dec0540';
 const objectReference = `content-assets/${tenantId}/${organizationId}/${assetId}`;
+// The presigned grant the scanner reads the object through. It holds no
+// storage credential of its own, so a scan request without one is incomplete.
+const fetchUrl = 'https://bucket.t3.storageapi.dev/object?X-Amz-Signature=abc';
 const sha256 = 'a'.repeat(64);
 const request = {
   tenantId,
   organizationId,
   assetId,
   objectReference,
-  fetchUrl: 'https://storage.internal.example/grant',
+  fetchUrl,
   contentType: 'application/pdf',
   byteLength: 100,
   sha256,
