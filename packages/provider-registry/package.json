@@ -11,5 +11,8 @@
     "@expadio/authorization": "workspace:*",
     "@expadio/authorization-persistence": "workspace:*",
     "@expadio/tenancy": "workspace:*"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.ts"
   }
 }
