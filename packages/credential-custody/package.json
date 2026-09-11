@@ -11,5 +11,8 @@
   },
   "devDependencies": {
     "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@platform-hub/aws-sigv4": "workspace:*"
   }
 }
