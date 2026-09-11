@@ -64,6 +64,24 @@ function required(value: unknown, code: string, max = 255): string {
 }
 
 /**
+ * Where the scanner may be reached.
+ *
+ * A bearer token travels on every scan request, so the transport has to be
+ * closed to eavesdroppers. Plain HTTP is permitted for exactly one case: a
+ * `.railway.internal` host, which resolves only inside the project's private
+ * network and is not reachable from the internet at all. That is a stronger
+ * position than TLS on a public endpoint, not a weaker one -- it means the
+ * scanner has no public surface to attack. Any other plaintext endpoint is
+ * refused, so this cannot be widened by pointing it at an arbitrary host.
+ */
+function isAcceptableScannerEndpoint(endpoint: URL): boolean {
+  if (endpoint.protocol === 'https:') return true;
+  if (endpoint.protocol !== 'http:') return false;
+  const host = endpoint.hostname.toLowerCase();
+  return host === 'railway.internal' || host.endsWith('.railway.internal');
+}
+
+/**
  * Platform-side adapter for a private scanning service.
  *
  * The scanner is lent a presigned grant for exactly one object rather than
@@ -78,7 +96,9 @@ export class HttpContentAssetScanner implements ContentAssetScanner {
 
   constructor(options: HttpContentAssetScannerOptions) {
     const endpoint = new URL(options.endpoint);
-    if (endpoint.protocol !== 'https:') throw new Error('CONTENT_ASSET_SCANNER_HTTPS_REQUIRED');
+    if (!isAcceptableScannerEndpoint(endpoint)) {
+      throw new Error('CONTENT_ASSET_SCANNER_HTTPS_REQUIRED');
+    }
     if (endpoint.username !== '' || endpoint.password !== '') {
       throw new Error('CONTENT_ASSET_SCANNER_CREDENTIAL_IN_URL');
     }
