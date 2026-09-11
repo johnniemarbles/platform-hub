@@ -37,9 +37,10 @@
     "./governed-twilio-binding": "./src/governed-twilio-binding.ts"
   },
   "dependencies": {
-    "@platform-hub/provider-registry": "workspace:*",
+    "@platform-hub/credential-custody": "workspace:*",
     "@expadio/governed-actions": "workspace:*",
-    "@platform-hub/credential-custody": "workspace:*"
+    "@expadio/observability": "workspace:*",
+    "@platform-hub/provider-registry": "workspace:*"
   },
   "scripts": {
     "test": "node --experimental-strip-types --test test/*.test.ts"

@@ -241,3 +241,59 @@ test('an unavailable provider refuses loudly rather than throwing or dropping', 
   assert.equal(result.reasonCode, 'PROVIDER_UNAVAILABLE');
   assert.ok(result.reason);
 });
+
+test('the live gate log and the durable trace are written from one record', () => {
+  // The reason the observer hangs off the recorder rather than being called
+  // separately in the spine: an incident reconstructed from logs and one
+  // reconstructed from traces must not be able to disagree. Two call sites
+  // would eventually record different things.
+  const observed: Array<Record<string, unknown>> = [];
+  let tick = 0;
+  const builder = new DecisionTraceBuilder(
+    () => (tick += 5),
+    (record) => observed.push({ ...record }),
+  );
+
+  builder.pass('CONSENT', 'clear');
+  builder.fail('SUPPRESSION', 'recipient is on a suppression list', {
+    message: 'Remove the address from the suppression list',
+    href: '/communications/suppressions',
+  });
+
+  const trace = builder.build({
+    traceId: '11111111-1111-4111-8111-111111111111',
+    tenantId: '22222222-2222-4222-8222-222222222222',
+    kind: 'DISPATCH',
+    outcome: 'REFUSED',
+    correlationId: 'corr-shared',
+  });
+
+  assert.equal(observed.length, 2, 'only gates actually decided are observed');
+
+  for (const seen of observed) {
+    const recorded = trace.gates.find((gate) => gate.gate === seen.gate);
+    assert.ok(recorded, `${String(seen.gate)} was logged but is not in the trace`);
+    assert.equal(recorded.verdict, seen.verdict);
+    assert.equal(recorded.detail, seen.detail);
+    assert.equal(recorded.ordinal, seen.ordinal);
+    assert.equal(recorded.elapsedMs, seen.elapsedMs);
+  }
+
+  // A gate after the refusal is NOT_EVALUATED in the trace and is never
+  // observed at all -- there was no decision to log.
+  assert.ok(trace.gates.some((gate) => gate.verdict === 'NOT_EVALUATED'));
+  assert.equal(observed.some((seen) => seen.verdict === 'NOT_EVALUATED'), false);
+});
+
+test('a builder with no observer behaves exactly as it did before', () => {
+  const builder = new DecisionTraceBuilder(() => 0);
+  builder.pass('CONSENT', 'clear');
+  const trace = builder.build({
+    traceId: '11111111-1111-4111-8111-111111111111',
+    tenantId: '22222222-2222-4222-8222-222222222222',
+    kind: 'DISPATCH',
+    outcome: 'SENT',
+    correlationId: 'corr-none',
+  });
+  assert.equal(trace.gates.find((gate) => gate.gate === 'CONSENT')?.verdict, 'PASS');
+});

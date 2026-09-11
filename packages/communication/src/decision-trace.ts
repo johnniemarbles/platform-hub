@@ -92,29 +92,54 @@ export interface DecisionTrace {
  * and never shown as passed — showing later gates as blank misrepresents the
  * system, and `not evaluated` teaches the ordering (§7.2).
  */
+/**
+ * Where a gate outcome goes as it happens, in addition to the trace.
+ *
+ * Optional, and injected rather than imported, so this module keeps no opinion
+ * about logging and no dependency on a logger. Absent, nothing changes.
+ *
+ * The point of driving the live log from the same recorder as the durable trace
+ * is that they cannot drift: an incident reconstructed from logs and one
+ * reconstructed from traces are reading the same fields, written once.
+ */
+export interface GateObserver {
+  (record: {
+    readonly gate: string;
+    readonly ordinal: number;
+    readonly verdict: 'PASS' | 'FAIL' | 'NOT_EVALUATED';
+    readonly detail: string;
+    readonly elapsedMs: number;
+    readonly remediation?: string;
+  }): void;
+}
+
 export class DecisionTraceBuilder {
   private readonly records: GateRecord[] = [];
   private readonly startedAt: number;
   private readonly clock: () => number;
+  private readonly observe: GateObserver | undefined;
   private stopped: EnforcementGate | null = null;
   private considered: readonly string[] = [];
   private rejected: Readonly<Record<string, readonly string[]>> = {};
   private packs: Record<string, string> = {};
 
-  constructor(clock: () => number = () => Date.now()) {
+  constructor(clock: () => number = () => Date.now(), observe?: GateObserver) {
     this.clock = clock;
     this.startedAt = clock();
+    this.observe = observe;
   }
 
   pass(gate: EnforcementGate, detail: string): this {
     if (this.stopped !== null) return this;
-    this.records.push({
+    const record = {
       gate,
       ordinal: gateOrdinal(gate),
-      verdict: 'PASS',
+      verdict: 'PASS' as const,
       detail,
       elapsedMs: this.clock() - this.startedAt,
-    });
+    };
+    this.records.push(record);
+    this.observe?.(record);
     return this;
   }
 
@@ -124,15 +149,17 @@ export class DecisionTraceBuilder {
     remediation?: { readonly message: string; readonly href?: string },
   ): this {
     if (this.stopped !== null) return this;
-    this.records.push({
+    const record = {
       gate,
       ordinal: gateOrdinal(gate),
-      verdict: 'FAIL',
+      verdict: 'FAIL' as const,
       detail,
       elapsedMs: this.clock() - this.startedAt,
       ...(remediation !== undefined ? { remediation: remediation.message } : {}),
       ...(remediation?.href !== undefined ? { remediationHref: remediation.href } : {}),
-    });
+    };
+    this.records.push(record);
+    this.observe?.(record);
     this.stopped = gate;
     return this;
   }

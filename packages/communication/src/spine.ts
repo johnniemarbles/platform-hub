@@ -6,6 +6,7 @@ import type {
 import { derivePlane, planeCharacteristics, type CommunicationPlane } from './plane.ts';
 import {
   DecisionTraceBuilder,
+  type GateObserver,
   redactRecipient,
   type DecisionTrace,
   type DecisionTraceRepository,
@@ -94,6 +95,14 @@ export interface SpineInput {
   readonly estimatedCostMinorUnits: number;
   readonly now?: () => string;
   readonly clock?: () => number;
+  /**
+   * Where each gate's outcome goes as it is decided, in addition to the trace.
+   *
+   * Optional: absent, the spine behaves exactly as before. A caller that wants
+   * live logs passes one, and it is driven by the same recorder that writes the
+   * trace, so the two cannot describe the same run differently.
+   */
+  readonly observeGate?: GateObserver;
 }
 
 export interface SpineResult {
@@ -111,7 +120,7 @@ export async function runEnforcementSpine(
   input: SpineInput,
   ports: SpinePorts,
 ): Promise<SpineResult> {
-  const trace = new DecisionTraceBuilder(input.clock);
+  const trace = new DecisionTraceBuilder(input.clock, input.observeGate);
   const simulate = input.kind === 'SIMULATION';
   const nowIso = input.now?.() ?? new Date().toISOString();
 

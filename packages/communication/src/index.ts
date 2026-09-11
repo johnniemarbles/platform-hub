@@ -299,3 +299,4 @@ export * from './decision-trace.ts';
 export * from './provider-unavailable-adapter.ts';
 export * from './sending-domain.ts';
 export * from './spine.ts';
+export * from './suppression-policy.ts';
