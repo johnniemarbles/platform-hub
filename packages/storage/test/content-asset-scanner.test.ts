@@ -12,6 +12,7 @@ const request = {
   organizationId,
   assetId,
   objectReference,
+  fetchUrl: 'https://storage.internal.example/grant',
   contentType: 'application/pdf',
   byteLength: 100,
   sha256,

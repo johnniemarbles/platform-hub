@@ -6,6 +6,15 @@ export interface ContentAssetScanRequest {
   readonly organizationId: string;
   readonly assetId: string;
   readonly objectReference: string;
+  /**
+   * A short-lived presigned URL the scanner reads the object through.
+   *
+   * The scanner holds no storage credential of its own, by design: it is the
+   * service that runs an antivirus engine over bytes an unauthenticated party
+   * chose, so it is the worst place to keep a key that opens every tenant's
+   * media. The platform holds that key and lends one object at a time.
+   */
+  readonly fetchUrl: string;
   readonly contentType: string;
   readonly byteLength: number;
   readonly sha256: string;
@@ -55,9 +64,12 @@ function required(value: unknown, code: string, max = 255): string {
 }
 
 /**
- * Platform-side adapter for a private scanning service. The service resolves the
- * opaque object reference through its own governed storage access; storage
- * credentials and object bytes are never exposed to Brand clients.
+ * Platform-side adapter for a private scanning service.
+ *
+ * The scanner is lent a presigned grant for exactly one object rather than
+ * holding storage credentials. Neither the credentials nor the grant are ever
+ * exposed to Brand clients: the grant is minted on this server and travels
+ * only to the scanner, over an authenticated channel.
  */
 export class HttpContentAssetScanner implements ContentAssetScanner {
   readonly #endpoint: string;
@@ -140,5 +152,16 @@ export class HttpContentAssetScanner implements ContentAssetScanner {
     }
     required(input.contentType, 'CONTENT_ASSET_SCAN_CONTENT_TYPE_INVALID');
     required(input.correlationId, 'CONTENT_ASSET_SCAN_CORRELATION_REQUIRED');
+    // A grant that is not https, or that carries userinfo, is refused here
+    // rather than at the scanner: the caller should not be able to send one.
+    let grant: URL;
+    try {
+      grant = new URL(required(input.fetchUrl, 'CONTENT_ASSET_SCAN_FETCH_URL_INVALID', 4096));
+    } catch {
+      throw new Error('CONTENT_ASSET_SCAN_FETCH_URL_INVALID');
+    }
+    if (grant.protocol !== 'https:' || grant.username !== '' || grant.password !== '') {
+      throw new Error('CONTENT_ASSET_SCAN_FETCH_URL_INVALID');
+    }
   }
 }

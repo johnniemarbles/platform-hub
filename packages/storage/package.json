@@ -5,6 +5,7 @@
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
-    "@platform-hub/provider-registry": "workspace:*"
+    "@platform-hub/provider-registry": "workspace:*",
+    "@platform-hub/aws-sigv4": "workspace:*"
   }
 }

@@ -318,6 +318,8 @@ export * from './supabase-artifact-store.ts';
 
 export * from './content-assets.ts';
 
-export * from './supabase-content-asset-store.ts';
+export * from './content-asset-store.ts';
+
+export * from './railway-content-asset-store.ts';
 
 export * from './content-asset-scanner.ts';
