@@ -48,7 +48,7 @@ export interface RailwayContentAssetStoreOptions {
   readonly now?: () => Date;
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DIGEST = /^[0-9a-f]{64}$/i;
 
 /** The header the digest is round-tripped in. Lower-case: S3 lower-cases metadata keys. */
