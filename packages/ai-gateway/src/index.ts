@@ -283,6 +283,8 @@ export * from './gemini-adapter.ts';
 
 export * from './openai-adapter.ts';
 
+export * from './anthropic-adapter.ts';
+
 export * from './governed-credential-binding.ts';
 
 export * from './provider-errors.ts';

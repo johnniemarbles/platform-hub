@@ -208,6 +208,14 @@ export class GeminiAiAdapter implements AiProviderAdapter {
       signal: AbortSignal.timeout(this.#requestTimeoutMs),
     });
 
+    const data = (await response.json()) as {
+      embedding?: { values?: number[] };
+    };
+    const embedding = data.embedding?.values;
+    if (!Array.isArray(embedding) || embedding.length === 0) {
+      throw new Error("AI_EMBEDDING_OUTPUT_INVALID");
+    }
+
     const provenance: AiProvenance = {
       connectorKey: connector.connectorKey,
       providerKey: connector.providerKey,
@@ -227,6 +235,10 @@ export class GeminiAiAdapter implements AiProviderAdapter {
       tenantId: intent.tenantId,
       status: "OBSERVATION",
       outputReference: `ref://ai-embedding/${intent.invocationId}`,
+      outputContent: {
+        mediaType: "application/json",
+        value: JSON.stringify({ dimensions: embedding.length, embedding }),
+      },
       confidence: 1.0,
       provenance,
     };

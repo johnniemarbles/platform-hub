@@ -105,6 +105,7 @@ test("OpenAiAiAdapter handles embeddings via /v1/embeddings", async () => {
     return new Response(
       JSON.stringify({
         data: [{ embedding: [0.01, 0.02, 0.03] }],
+        usage: { prompt_tokens: 4, total_tokens: 4 },
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
@@ -127,6 +128,10 @@ test("OpenAiAiAdapter handles embeddings via /v1/embeddings", async () => {
   assert.equal(requestBody.model, "text-embedding-3-small");
   assert.equal(proposal.status, "OBSERVATION");
   assert.equal(proposal.outputReference, `ref://ai-embedding/${embedIntent.invocationId}`);
+  assert.equal(proposal.outputContent?.mediaType, "application/json");
+  const payload = JSON.parse(proposal.outputContent?.value ?? "{}");
+  assert.equal(payload.dimensions, 3);
+  assert.deepEqual(payload.embedding, [0.01, 0.02, 0.03]);
 
   const validation = validateAiProposal(embedIntent, proposal);
   assert.equal(validation.valid, true);

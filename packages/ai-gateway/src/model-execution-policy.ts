@@ -12,28 +12,38 @@ export interface AiModelExecutionPolicy {
 }
 
 export function defaultAiModelExecutionPolicy(
-  provider: 'openai' | 'gemini',
+  provider: 'openai' | 'gemini' | 'anthropic',
 ): AiModelExecutionPolicy {
-  return provider === 'openai'
-    ? {
-        policyKey: 'ai.model.openai.default', version: 1, providerKey: 'openai',
-        generativeModelKey: 'gpt-4o-mini', embeddingModelKey: 'text-embedding-3-small',
-        maximumInputCharacters: 50_000, maximumOutputTokens: 2_048, temperature: 0.7,
-      }
-    : {
-        policyKey: 'ai.model.gemini.default', version: 1, providerKey: 'google-ai',
-        generativeModelKey: 'gemini-2.0-flash', embeddingModelKey: 'gemini-embedding-001',
-        maximumInputCharacters: 50_000, maximumOutputTokens: 2_048, temperature: 0.7,
-      };
+  if (provider === 'openai') {
+    return {
+      policyKey: 'ai.model.openai.default', version: 1, providerKey: 'openai',
+      generativeModelKey: 'gpt-4o-mini', embeddingModelKey: 'text-embedding-3-small',
+      maximumInputCharacters: 50_000, maximumOutputTokens: 2_048, temperature: 0.7,
+    };
+  }
+  if (provider === 'anthropic') {
+    return {
+      policyKey: 'ai.model.anthropic.default', version: 1, providerKey: 'anthropic',
+      generativeModelKey: 'claude-sonnet-4-20250514', embeddingModelKey: 'claude-sonnet-4-20250514',
+      maximumInputCharacters: 50_000, maximumOutputTokens: 2_048, temperature: 0.7,
+    };
+  }
+  return {
+    policyKey: 'ai.model.gemini.default', version: 1, providerKey: 'google-ai',
+    generativeModelKey: 'gemini-2.0-flash', embeddingModelKey: 'gemini-embedding-001',
+    maximumInputCharacters: 50_000, maximumOutputTokens: 2_048, temperature: 0.7,
+  };
 }
 
 export function validateAiModelExecutionPolicy(
   policy: AiModelExecutionPolicy,
   providerKey: string,
 ): AiModelExecutionPolicy {
+  const key = providerKey.toLowerCase();
   const providerMatches = policy.providerKey === providerKey
-    || (policy.providerKey === 'openai' && providerKey.toLowerCase().includes('openai'))
-    || (policy.providerKey === 'google-ai' && /gemini|google-ai/u.test(providerKey.toLowerCase()));
+    || (policy.providerKey === 'openai' && key.includes('openai'))
+    || (policy.providerKey === 'google-ai' && /gemini|google-ai/u.test(key))
+    || (policy.providerKey === 'anthropic' && key.includes('anthropic'));
   const valid = policy.policyKey.trim() !== ''
     && Number.isInteger(policy.version) && policy.version > 0
     && providerMatches

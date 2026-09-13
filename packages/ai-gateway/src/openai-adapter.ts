@@ -193,6 +193,17 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
       signal: AbortSignal.timeout(this.#requestTimeoutMs),
     });
 
+    const data = (await response.json()) as {
+      data?: Array<{ embedding?: number[] }>;
+      usage?: { prompt_tokens?: number; total_tokens?: number };
+    };
+    const embedding = data.data?.[0]?.embedding;
+    if (!Array.isArray(embedding) || embedding.length === 0) {
+      throw new Error("AI_EMBEDDING_OUTPUT_INVALID");
+    }
+    const totalTokens = data.usage?.total_tokens ?? data.usage?.prompt_tokens ?? 0;
+    const costMinorUnits = Math.max(1, Math.ceil((totalTokens / 1_000) * 1));
+
     const provenance: AiProvenance = {
       connectorKey: connector.connectorKey,
       providerKey: connector.providerKey,
@@ -204,7 +215,7 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
       sourceReferences: [intent.inputReference],
       processedAt,
       ...(connector.region !== undefined ? { region: connector.region } : {}),
-      costMinorUnits: 1,
+      costMinorUnits,
     };
 
     return {
@@ -212,6 +223,10 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
       tenantId: intent.tenantId,
       status: "OBSERVATION",
       outputReference: `ref://ai-embedding/${intent.invocationId}`,
+      outputContent: {
+        mediaType: "application/json",
+        value: JSON.stringify({ dimensions: embedding.length, embedding }),
+      },
       confidence: 1.0,
       provenance,
     };
