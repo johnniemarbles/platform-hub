@@ -68,6 +68,9 @@ export class GeminiAiAdapter implements AiProviderAdapter {
     readonly connector: ConnectorDefinition;
   }): Promise<AiProposal> {
     const { intent, connector } = input;
+    if (intent.operation === 'RERANK' || intent.operation === 'VISION_ANALYZE') {
+      throw new Error(`AI_OPERATION_UNSUPPORTED: Gemini adapter does not support ${intent.operation}`);
+    }
     const policy = validateAiModelExecutionPolicy(this.#executionPolicy, connector.providerKey);
     enforceAiInputLimit(policy, intent.inputReference, intent.contextReference);
     const modelKey = modelForOperation(policy, intent.operation);
@@ -220,6 +223,12 @@ export class GeminiAiAdapter implements AiProviderAdapter {
       throw new Error("AI_EMBEDDING_OUTPUT_INVALID");
     }
 
+    const costMinorUnits = estimateAiCostMinorUnits({
+      modelKey,
+      inputTokens: Math.max(1, Math.ceil(intent.inputReference.length / 4)),
+      outputTokens: 0,
+    });
+
     const provenance: AiProvenance = {
       connectorKey: connector.connectorKey,
       providerKey: connector.providerKey,
@@ -231,7 +240,7 @@ export class GeminiAiAdapter implements AiProviderAdapter {
       sourceReferences: [intent.inputReference],
       processedAt,
       ...(connector.region !== undefined ? { region: connector.region } : {}),
-      costMinorUnits: 1,
+      costMinorUnits,
     };
 
     return {
