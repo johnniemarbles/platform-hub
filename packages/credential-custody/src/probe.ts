@@ -137,6 +137,84 @@ export const twilioProbe: CredentialProbe = {
   },
 };
 
+/** OpenAI — GET /v1/models (read-only). Confirms key can list models. */
+export const openaiProbe: CredentialProbe = {
+  providerKey: 'openai',
+  async probe(input) {
+    const fetchImpl = input.fetchImpl ?? fetch;
+    const result = await call(fetchImpl, 'https://api.openai.com/v1/models', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${input.secret}` },
+    });
+    if (!result.ok) {
+      const body = result.body as { error?: { message?: string } } | null;
+      return {
+        valid: false,
+        providerKey: 'openai',
+        detectedCapabilities: [],
+        warnings: [],
+        error: body?.error?.message ?? result.error ?? `OpenAI returned HTTP ${result.status}.`,
+        checkedAt: nowIso(input),
+      };
+    }
+    const models = (result.body as { data?: unknown[] } | null)?.data ?? [];
+    const warnings: ProbeWarning[] = [];
+    if (models.length === 0) {
+      warnings.push({
+        code: 'OPENAI_NO_MODELS',
+        severity: 'WARNING',
+        message: 'This key authenticated but returned no models. Confirm it has model access for chat completions.',
+      });
+    }
+    return {
+      valid: true,
+      providerKey: 'openai',
+      detectedCapabilities: ['ai.generate'],
+      warnings,
+      checkedAt: nowIso(input),
+    };
+  },
+};
+
+/** Google Gemini — GET generative language models list (read-only). */
+export const geminiProbe: CredentialProbe = {
+  providerKey: 'gemini',
+  async probe(input) {
+    const fetchImpl = input.fetchImpl ?? fetch;
+    const url =
+      'https://generativelanguage.googleapis.com/v1beta/models?key=' +
+      encodeURIComponent(input.secret);
+    const result = await call(fetchImpl, url, { method: 'GET' });
+    if (!result.ok) {
+      const body = result.body as { error?: { message?: string } } | null;
+      return {
+        valid: false,
+        providerKey: 'gemini',
+        detectedCapabilities: [],
+        warnings: [],
+        error: body?.error?.message ?? result.error ?? `Gemini returned HTTP ${result.status}.`,
+        checkedAt: nowIso(input),
+      };
+    }
+    const models = (result.body as { models?: unknown[] } | null)?.models ?? [];
+    const warnings: ProbeWarning[] = [];
+    if (models.length === 0) {
+      warnings.push({
+        code: 'GEMINI_NO_MODELS',
+        severity: 'WARNING',
+        message: 'This key authenticated but returned no generative models. Confirm Generative Language API access.',
+      });
+    }
+    return {
+      valid: true,
+      providerKey: 'gemini',
+      detectedCapabilities: ['ai.generate'],
+      warnings,
+      checkedAt: nowIso(input),
+    };
+  },
+};
+
 /** AWS SES — GetAccount. Returns sending-enabled, quota and sandbox status. */
 export const sesProbe: CredentialProbe = {
   providerKey: 'ses',
@@ -545,6 +623,9 @@ export const PROBE_REGISTRY: Readonly<Record<string, CredentialProbe>> = {
   vonage: vonageProbe,
   'vonage-sms': vonageProbe,
   'vonage-voice': vonageProbe,
+  openai: openaiProbe,
+  gemini: geminiProbe,
+  'google-ai': geminiProbe,
 };
 
 export function probeFor(providerKey: string): CredentialProbe | null {
