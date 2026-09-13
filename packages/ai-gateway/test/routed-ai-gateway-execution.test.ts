@@ -57,7 +57,7 @@ test("RoutedAiGateway routes US HIPAA intent through GeminiAiAdapter", async () 
     fetchImpl: async () =>
       new Response(
         JSON.stringify({
-          choices: [{ message: { content: "OpenAI response" } }],
+          choices: [{ message: { content: '{"result":"OpenAI response"}' } }],
           usage: { total_tokens: 100 },
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
@@ -112,7 +112,7 @@ test("RoutedAiGateway routes EU GDPR intent to tenant-owned OpenAI adapter", asy
     fetchImpl: async () =>
       new Response(
         JSON.stringify({
-          choices: [{ message: { content: "OpenAI response" } }],
+          choices: [{ message: { content: '{"result":"OpenAI response"}' } }],
           usage: { total_tokens: 50 },
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }

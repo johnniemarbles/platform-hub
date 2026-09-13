@@ -7,6 +7,15 @@ import type {
 } from "./index.ts";
 import type { AiProviderAdapter } from "./routing.ts";
 import { fetchAiProvider } from './provider-errors.ts';
+import {
+  defaultAiModelExecutionPolicy,
+  enforceAiInputLimit,
+  enforceStructuredAiOutput,
+  modelForOperation,
+  requiresStructuredJson,
+  validateAiModelExecutionPolicy,
+  type AiModelExecutionPolicy,
+} from './model-execution-policy.ts';
 
 export interface AiCredentialRequest {
   readonly tenantId: string;
@@ -26,12 +35,13 @@ export interface GeminiAiAdapterOptions {
   readonly fetchImpl?: typeof fetch;
   readonly now?: () => string;
   readonly requestTimeoutMs?: number;
+  readonly executionPolicy?: AiModelExecutionPolicy;
 }
 
 export class GeminiAiAdapter implements AiProviderAdapter {
   readonly adapterKey = "gemini-v1";
   readonly #apiToken: AiApiTokenProvider;
-  readonly #defaultModelKey: string;
+  readonly #executionPolicy: AiModelExecutionPolicy;
   readonly #endpointBaseUrl: string;
   readonly #fetch: typeof fetch;
   readonly #now: () => string;
@@ -39,7 +49,13 @@ export class GeminiAiAdapter implements AiProviderAdapter {
 
   constructor(options: GeminiAiAdapterOptions) {
     this.#apiToken = options.apiToken;
-    this.#defaultModelKey = options.modelKey ?? "gemini-2.0-flash";
+    const fallback = defaultAiModelExecutionPolicy('gemini');
+    this.#executionPolicy = validateAiModelExecutionPolicy(
+      options.executionPolicy ?? (options.modelKey === undefined ? fallback : {
+        ...fallback, generativeModelKey: options.modelKey, embeddingModelKey: options.modelKey,
+      }),
+      'google-ai',
+    );
     this.#endpointBaseUrl = (options.endpointBaseUrl ?? "https://generativelanguage.googleapis.com").replace(/\/+$/u, "");
     this.#fetch = options.fetchImpl ?? fetch;
     this.#now = options.now ?? (() => new Date().toISOString());
@@ -51,7 +67,9 @@ export class GeminiAiAdapter implements AiProviderAdapter {
     readonly connector: ConnectorDefinition;
   }): Promise<AiProposal> {
     const { intent, connector } = input;
-    const modelKey = this.#defaultModelKey;
+    const policy = validateAiModelExecutionPolicy(this.#executionPolicy, connector.providerKey);
+    enforceAiInputLimit(policy, intent.inputReference, intent.contextReference);
+    const modelKey = modelForOperation(policy, intent.operation);
     const processedAt = this.#now();
 
     const token = await this.#apiToken({
@@ -94,7 +112,9 @@ export class GeminiAiAdapter implements AiProviderAdapter {
         },
       ],
       generationConfig: {
-        temperature: intent.operation === "EXTRACT" || intent.operation === "CLASSIFY" ? 0.1 : 0.7,
+        temperature: intent.operation === "EXTRACT" || intent.operation === "CLASSIFY" ? 0 : this.#executionPolicy.temperature,
+        maxOutputTokens: this.#executionPolicy.maximumOutputTokens,
+        ...(requiresStructuredJson(intent.operation) ? { responseMimeType: 'application/json' } : {}),
       },
     };
 
@@ -129,6 +149,7 @@ export class GeminiAiAdapter implements AiProviderAdapter {
 
     const firstCandidate = data.candidates?.[0];
     const generatedText = firstCandidate?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+    enforceStructuredAiOutput(intent.operation, generatedText);
     const totalTokens = data.usageMetadata?.totalTokenCount ?? 0;
     const costMinorUnits = Math.ceil((totalTokens / 1_000) * 1);
 
@@ -136,6 +157,8 @@ export class GeminiAiAdapter implements AiProviderAdapter {
       connectorKey: connector.connectorKey,
       providerKey: connector.providerKey,
       modelKey,
+      modelPolicyKey: this.#executionPolicy.policyKey,
+      modelPolicyVersion: this.#executionPolicy.version,
       promptConfigurationKey: intent.promptConfiguration.key,
       promptConfigurationVersion: intent.promptConfiguration.version,
       sourceReferences: [intent.inputReference, ...(intent.contextReference ? [intent.contextReference] : [])],
@@ -189,6 +212,8 @@ export class GeminiAiAdapter implements AiProviderAdapter {
       connectorKey: connector.connectorKey,
       providerKey: connector.providerKey,
       modelKey,
+      modelPolicyKey: this.#executionPolicy.policyKey,
+      modelPolicyVersion: this.#executionPolicy.version,
       promptConfigurationKey: intent.promptConfiguration.key,
       promptConfigurationVersion: intent.promptConfiguration.version,
       sourceReferences: [intent.inputReference],

@@ -82,9 +82,13 @@ test("OpenAiAiAdapter invokes chat completions and returns validated proposal", 
   assert.equal(requestedUrl, "https://api.openai.com/v1/chat/completions");
   assert.equal(requestHeaders["Authorization"], "Bearer mock-openai-key-abc");
   assert.equal(requestBody.model, "gpt-4o-mini");
+  assert.equal(requestBody.max_tokens, 2048);
+  assert.equal(requestBody.temperature, 0);
+  assert.deepEqual(requestBody.response_format, { type: 'json_object' });
   assert.equal(proposal.status, "PROPOSAL");
   assert.equal(proposal.provenance.modelKey, "gpt-4o-mini");
   assert.equal(proposal.provenance.costMinorUnits, 1);
+  assert.equal(proposal.provenance.modelPolicyKey, 'ai.model.openai.default');
 
   const validation = validateAiProposal(intent, proposal);
   assert.equal(validation.valid, true);

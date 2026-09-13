@@ -7,6 +7,15 @@ import type {
 import type { AiProviderAdapter } from "./routing.ts";
 import type { AiApiTokenProvider } from "./gemini-adapter.ts";
 import { fetchAiProvider } from './provider-errors.ts';
+import {
+  defaultAiModelExecutionPolicy,
+  enforceAiInputLimit,
+  enforceStructuredAiOutput,
+  modelForOperation,
+  requiresStructuredJson,
+  validateAiModelExecutionPolicy,
+  type AiModelExecutionPolicy,
+} from './model-execution-policy.ts';
 
 export interface OpenAiAiAdapterOptions {
   readonly apiToken: AiApiTokenProvider;
@@ -15,12 +24,13 @@ export interface OpenAiAiAdapterOptions {
   readonly fetchImpl?: typeof fetch;
   readonly now?: () => string;
   readonly requestTimeoutMs?: number;
+  readonly executionPolicy?: AiModelExecutionPolicy;
 }
 
 export class OpenAiAiAdapter implements AiProviderAdapter {
   readonly adapterKey = "openai-v1";
   readonly #apiToken: AiApiTokenProvider;
-  readonly #defaultModelKey: string;
+  readonly #executionPolicy: AiModelExecutionPolicy;
   readonly #endpointBaseUrl: string;
   readonly #fetch: typeof fetch;
   readonly #now: () => string;
@@ -28,7 +38,13 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
 
   constructor(options: OpenAiAiAdapterOptions) {
     this.#apiToken = options.apiToken;
-    this.#defaultModelKey = options.modelKey ?? "gpt-4o-mini";
+    const fallback = defaultAiModelExecutionPolicy('openai');
+    this.#executionPolicy = validateAiModelExecutionPolicy(
+      options.executionPolicy ?? (options.modelKey === undefined ? fallback : {
+        ...fallback, generativeModelKey: options.modelKey, embeddingModelKey: options.modelKey,
+      }),
+      'openai',
+    );
     this.#endpointBaseUrl = (options.endpointBaseUrl ?? "https://api.openai.com/v1").replace(/\/+$/u, "");
     this.#fetch = options.fetchImpl ?? fetch;
     this.#now = options.now ?? (() => new Date().toISOString());
@@ -40,7 +56,9 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
     readonly connector: ConnectorDefinition;
   }): Promise<AiProposal> {
     const { intent, connector } = input;
-    const modelKey = this.#defaultModelKey;
+    const policy = validateAiModelExecutionPolicy(this.#executionPolicy, connector.providerKey);
+    enforceAiInputLimit(policy, intent.inputReference, intent.contextReference);
+    const modelKey = modelForOperation(policy, intent.operation);
     const processedAt = this.#now();
 
     const token = await this.#apiToken({
@@ -88,7 +106,9 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
     const requestBody = {
       model: modelKey,
       messages,
-      temperature: intent.operation === "EXTRACT" || intent.operation === "CLASSIFY" ? 0.1 : 0.7,
+      temperature: intent.operation === "EXTRACT" || intent.operation === "CLASSIFY" ? 0 : this.#executionPolicy.temperature,
+      max_tokens: this.#executionPolicy.maximumOutputTokens,
+      ...(requiresStructuredJson(intent.operation) ? { response_format: { type: 'json_object' } } : {}),
     };
 
     const response = await fetchAiProvider(connector.providerKey, this.#fetch, url, {
@@ -116,6 +136,7 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
 
     const choice = data.choices?.[0];
     const generatedText = choice?.message?.content ?? "";
+    enforceStructuredAiOutput(intent.operation, generatedText);
     const totalTokens = data.usage?.total_tokens ?? 0;
     const costMinorUnits = Math.ceil((totalTokens / 1_000) * 1);
 
@@ -123,6 +144,8 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
       connectorKey: connector.connectorKey,
       providerKey: connector.providerKey,
       modelKey,
+      modelPolicyKey: this.#executionPolicy.policyKey,
+      modelPolicyVersion: this.#executionPolicy.version,
       promptConfigurationKey: intent.promptConfiguration.key,
       promptConfigurationVersion: intent.promptConfiguration.version,
       sourceReferences: [intent.inputReference, ...(intent.contextReference ? [intent.contextReference] : [])],
@@ -156,7 +179,7 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
     const url = `${this.#endpointBaseUrl}/embeddings`;
 
     const requestBody = {
-      model: modelKey === "gpt-4o-mini" ? "text-embedding-3-small" : modelKey,
+      model: modelKey,
       input: intent.inputReference,
     };
 
@@ -174,6 +197,8 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
       connectorKey: connector.connectorKey,
       providerKey: connector.providerKey,
       modelKey,
+      modelPolicyKey: this.#executionPolicy.policyKey,
+      modelPolicyVersion: this.#executionPolicy.version,
       promptConfigurationKey: intent.promptConfiguration.key,
       promptConfigurationVersion: intent.promptConfiguration.version,
       sourceReferences: [intent.inputReference],

@@ -85,6 +85,7 @@ test("GeminiAiAdapter invokes generateContent, parses response and sets provenan
   assert.equal((requestHeaders as Record<string, string>)["X-Goog-Api-Key"], "mock-gemini-key-123");
   assert.equal(requestBody.contents[0].parts[0].text, intent.inputReference);
   assert.equal(requestBody.systemInstruction.parts[0].text, `Context: ${intent.contextReference}`);
+  assert.equal(requestBody.generationConfig.maxOutputTokens, 2048);
 
   assert.equal(proposal.invocationId, intent.invocationId);
   assert.equal(proposal.tenantId, intent.tenantId);
@@ -127,7 +128,7 @@ test("GeminiAiAdapter handles EMBED operation with embedContent API", async () =
 
   const proposal = await adapter.invoke({ intent: embedIntent, connector });
 
-  assert.ok(requestedUrl.includes("gemini-2.0-flash:embedContent"));
+  assert.ok(requestedUrl.includes("gemini-embedding-001:embedContent"));
   assert.equal(proposal.outputReference, `ref://ai-embedding/${embedIntent.invocationId}`);
   assert.equal(proposal.confidence, 1.0);
 

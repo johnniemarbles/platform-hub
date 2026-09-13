@@ -58,6 +58,8 @@ export interface AiProvenance {
   readonly connectorKey: string;
   readonly providerKey: string;
   readonly modelKey: string;
+  readonly modelPolicyKey?: string;
+  readonly modelPolicyVersion?: number;
   readonly promptConfigurationKey: string;
   readonly promptConfigurationVersion: number;
   readonly sourceReferences: readonly string[];
@@ -236,6 +238,17 @@ export function validateAiProposal(
       path: 'provenance.costMinorUnits',
     });
   }
+  if (
+    (proposal.provenance.modelPolicyKey === undefined)
+      !== (proposal.provenance.modelPolicyVersion === undefined)
+    || (proposal.provenance.modelPolicyKey !== undefined
+      && proposal.provenance.modelPolicyKey.trim() === '')
+    || (proposal.provenance.modelPolicyVersion !== undefined
+      && (!Number.isInteger(proposal.provenance.modelPolicyVersion)
+        || proposal.provenance.modelPolicyVersion <= 0))
+  ) {
+    issues.push({ code: 'AI_PROVENANCE_REQUIRED', path: 'provenance.modelPolicy' });
+  }
   return result(issues);
 }
 
@@ -273,3 +286,5 @@ export * from './openai-adapter.ts';
 export * from './governed-credential-binding.ts';
 
 export * from './provider-errors.ts';
+
+export * from './model-execution-policy.ts';
