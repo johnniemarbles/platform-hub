@@ -292,3 +292,7 @@ export * from './provider-errors.ts';
 export * from './model-execution-policy.ts';
 
 export * from './recorded-gateway.ts';
+
+export * from './cost-tables.ts';
+
+export * from './prompt-resolver.ts';
