@@ -13,6 +13,7 @@ export interface OpenAiAiAdapterOptions {
   readonly endpointBaseUrl?: string;
   readonly fetchImpl?: typeof fetch;
   readonly now?: () => string;
+  readonly requestTimeoutMs?: number;
 }
 
 export class OpenAiAiAdapter implements AiProviderAdapter {
@@ -22,6 +23,7 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
   readonly #endpointBaseUrl: string;
   readonly #fetch: typeof fetch;
   readonly #now: () => string;
+  readonly #requestTimeoutMs: number;
 
   constructor(options: OpenAiAiAdapterOptions) {
     this.#apiToken = options.apiToken;
@@ -29,6 +31,7 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
     this.#endpointBaseUrl = (options.endpointBaseUrl ?? "https://api.openai.com/v1").replace(/\/+$/u, "");
     this.#fetch = options.fetchImpl ?? fetch;
     this.#now = options.now ?? (() => new Date().toISOString());
+    this.#requestTimeoutMs = positiveTimeout(options.requestTimeoutMs);
   }
 
   async invoke(input: {
@@ -95,6 +98,7 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
         "User-Agent": "expadio-ai-gateway/1.0",
       },
       body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(this.#requestTimeoutMs),
     });
 
     if (!response.ok) {
@@ -167,6 +171,7 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(this.#requestTimeoutMs),
     });
 
     if (!response.ok) {
@@ -195,4 +200,12 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
       provenance,
     };
   }
+}
+
+function positiveTimeout(value: number | undefined): number {
+  const timeout = value ?? 90_000;
+  if (!Number.isInteger(timeout) || timeout <= 0) {
+    throw new Error('AI_PROVIDER_TIMEOUT_INVALID');
+  }
+  return timeout;
 }

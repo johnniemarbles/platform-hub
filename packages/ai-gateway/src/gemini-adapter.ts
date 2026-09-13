@@ -24,6 +24,7 @@ export interface GeminiAiAdapterOptions {
   readonly endpointBaseUrl?: string;
   readonly fetchImpl?: typeof fetch;
   readonly now?: () => string;
+  readonly requestTimeoutMs?: number;
 }
 
 export class GeminiAiAdapter implements AiProviderAdapter {
@@ -33,6 +34,7 @@ export class GeminiAiAdapter implements AiProviderAdapter {
   readonly #endpointBaseUrl: string;
   readonly #fetch: typeof fetch;
   readonly #now: () => string;
+  readonly #requestTimeoutMs: number;
 
   constructor(options: GeminiAiAdapterOptions) {
     this.#apiToken = options.apiToken;
@@ -40,6 +42,7 @@ export class GeminiAiAdapter implements AiProviderAdapter {
     this.#endpointBaseUrl = (options.endpointBaseUrl ?? "https://generativelanguage.googleapis.com").replace(/\/+$/u, "");
     this.#fetch = options.fetchImpl ?? fetch;
     this.#now = options.now ?? (() => new Date().toISOString());
+    this.#requestTimeoutMs = positiveTimeout(options.requestTimeoutMs);
   }
 
   async invoke(input: {
@@ -107,6 +110,7 @@ export class GeminiAiAdapter implements AiProviderAdapter {
         "X-Goog-Api-Client": "expadio-ai-gateway/1.0",
       },
       body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(this.#requestTimeoutMs),
     });
 
     if (!response.ok) {
@@ -180,6 +184,7 @@ export class GeminiAiAdapter implements AiProviderAdapter {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(this.#requestTimeoutMs),
     });
 
     if (!response.ok) {
@@ -208,4 +213,12 @@ export class GeminiAiAdapter implements AiProviderAdapter {
       provenance,
     };
   }
+}
+
+function positiveTimeout(value: number | undefined): number {
+  const timeout = value ?? 90_000;
+  if (!Number.isInteger(timeout) || timeout <= 0) {
+    throw new Error('AI_PROVIDER_TIMEOUT_INVALID');
+  }
+  return timeout;
 }
