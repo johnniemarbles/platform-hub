@@ -127,3 +127,16 @@ test("OpenAiAiAdapter handles embeddings via /v1/embeddings", async () => {
   const validation = validateAiProposal(embedIntent, proposal);
   assert.equal(validation.valid, true);
 });
+
+test('OpenAiAiAdapter classifies and redacts provider failures', async () => {
+  const adapter = new OpenAiAiAdapter({
+    apiToken: async () => 'mock-key',
+    fetchImpl: async () => new Response('SENSITIVE patient data', { status: 401 }),
+  });
+  await assert.rejects(() => adapter.invoke({ intent, connector }), (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.match(error.message, /AI_PROVIDER_AUTH_FAILED/);
+    assert.doesNotMatch(error.message, /SENSITIVE|patient data/);
+    return true;
+  });
+});

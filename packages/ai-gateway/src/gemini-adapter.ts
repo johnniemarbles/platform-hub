@@ -6,6 +6,7 @@ import type {
   AiProvenance,
 } from "./index.ts";
 import type { AiProviderAdapter } from "./routing.ts";
+import { fetchAiProvider } from './provider-errors.ts';
 
 export interface AiCredentialRequest {
   readonly tenantId: string;
@@ -82,7 +83,7 @@ export class GeminiAiAdapter implements AiProviderAdapter {
   }): Promise<AiProposal> {
     const { intent, connector, modelKey, token, processedAt } = params;
 
-    const url = `${this.#endpointBaseUrl}/v1beta/models/${encodeURIComponent(modelKey)}:generateContent?key=${encodeURIComponent(token)}`;
+    const url = `${this.#endpointBaseUrl}/v1beta/models/${encodeURIComponent(modelKey)}:generateContent`;
 
     const promptText = intent.inputReference;
     const requestBody: Record<string, unknown> = {
@@ -103,20 +104,16 @@ export class GeminiAiAdapter implements AiProviderAdapter {
       };
     }
 
-    const response = await this.#fetch(url, {
+    const response = await fetchAiProvider(connector.providerKey, this.#fetch, url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-Goog-Api-Client": "expadio-ai-gateway/1.0",
+        "X-Goog-Api-Key": token,
       },
       body: JSON.stringify(requestBody),
       signal: AbortSignal.timeout(this.#requestTimeoutMs),
     });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "Network error");
-      throw new Error(`AI_PROVIDER_ERROR: Gemini responded with status ${response.status}: ${errorText}`);
-    }
 
     const data = (await response.json()) as {
       candidates?: Array<{
@@ -170,7 +167,7 @@ export class GeminiAiAdapter implements AiProviderAdapter {
   }): Promise<AiProposal> {
     const { intent, connector, modelKey, token, processedAt } = params;
 
-    const url = `${this.#endpointBaseUrl}/v1beta/models/${encodeURIComponent(modelKey)}:embedContent?key=${encodeURIComponent(token)}`;
+    const url = `${this.#endpointBaseUrl}/v1beta/models/${encodeURIComponent(modelKey)}:embedContent`;
 
     const requestBody = {
       content: {
@@ -178,19 +175,15 @@ export class GeminiAiAdapter implements AiProviderAdapter {
       },
     };
 
-    const response = await this.#fetch(url, {
+    const response = await fetchAiProvider(connector.providerKey, this.#fetch, url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "X-Goog-Api-Key": token,
       },
       body: JSON.stringify(requestBody),
       signal: AbortSignal.timeout(this.#requestTimeoutMs),
     });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "Network error");
-      throw new Error(`AI_PROVIDER_ERROR: Gemini responded with status ${response.status}: ${errorText}`);
-    }
 
     const provenance: AiProvenance = {
       connectorKey: connector.connectorKey,

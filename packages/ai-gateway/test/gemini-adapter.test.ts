@@ -81,7 +81,8 @@ test("GeminiAiAdapter invokes generateContent, parses response and sets provenan
   const proposal = await adapter.invoke({ intent, connector });
 
   assert.ok(requestedUrl.includes("gemini-2.0-flash:generateContent"));
-  assert.ok(requestedUrl.includes("key=mock-gemini-key-123"));
+  assert.doesNotMatch(requestedUrl, /mock-gemini-key-123|[?&]key=/);
+  assert.equal((requestHeaders as Record<string, string>)["X-Goog-Api-Key"], "mock-gemini-key-123");
   assert.equal(requestBody.contents[0].parts[0].text, intent.inputReference);
   assert.equal(requestBody.systemInstruction.parts[0].text, `Context: ${intent.contextReference}`);
 
@@ -147,7 +148,7 @@ test("GeminiAiAdapter rejects empty leased token with clear error", async () => 
 
 test("GeminiAiAdapter throws on provider error response", async () => {
   const mockFetch: typeof fetch = async () => {
-    return new Response("Quota exceeded", { status: 429 });
+    return new Response("SENSITIVE provider body must not escape", { status: 429 });
   };
 
   const adapter = new GeminiAiAdapter({
@@ -155,8 +156,10 @@ test("GeminiAiAdapter throws on provider error response", async () => {
     fetchImpl: mockFetch,
   });
 
-  await assert.rejects(
-    () => adapter.invoke({ intent, connector }),
-    /AI_PROVIDER_ERROR: Gemini responded with status 429/
-  );
+  await assert.rejects(() => adapter.invoke({ intent, connector }), (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.match(error.message, /AI_PROVIDER_RATE_LIMITED/);
+    assert.doesNotMatch(error.message, /SENSITIVE|Quota/);
+    return true;
+  });
 });

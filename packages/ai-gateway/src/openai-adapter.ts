@@ -6,6 +6,7 @@ import type {
 } from "./index.ts";
 import type { AiProviderAdapter } from "./routing.ts";
 import type { AiApiTokenProvider } from "./gemini-adapter.ts";
+import { fetchAiProvider } from './provider-errors.ts';
 
 export interface OpenAiAiAdapterOptions {
   readonly apiToken: AiApiTokenProvider;
@@ -90,7 +91,7 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
       temperature: intent.operation === "EXTRACT" || intent.operation === "CLASSIFY" ? 0.1 : 0.7,
     };
 
-    const response = await this.#fetch(url, {
+    const response = await fetchAiProvider(connector.providerKey, this.#fetch, url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -100,11 +101,6 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
       body: JSON.stringify(requestBody),
       signal: AbortSignal.timeout(this.#requestTimeoutMs),
     });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "Network error");
-      throw new Error(`AI_PROVIDER_ERROR: OpenAI responded with status ${response.status}: ${errorText}`);
-    }
 
     const data = (await response.json()) as {
       choices?: Array<{
@@ -164,7 +160,7 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
       input: intent.inputReference,
     };
 
-    const response = await this.#fetch(url, {
+    const response = await fetchAiProvider(connector.providerKey, this.#fetch, url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -173,11 +169,6 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
       body: JSON.stringify(requestBody),
       signal: AbortSignal.timeout(this.#requestTimeoutMs),
     });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "Network error");
-      throw new Error(`AI_PROVIDER_ERROR: OpenAI responded with status ${response.status}: ${errorText}`);
-    }
 
     const provenance: AiProvenance = {
       connectorKey: connector.connectorKey,
