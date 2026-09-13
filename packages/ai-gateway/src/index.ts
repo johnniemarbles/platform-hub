@@ -288,3 +288,5 @@ export * from './governed-credential-binding.ts';
 export * from './provider-errors.ts';
 
 export * from './model-execution-policy.ts';
+
+export * from './recorded-gateway.ts';
