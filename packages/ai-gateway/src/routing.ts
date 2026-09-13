@@ -30,11 +30,17 @@ export type RoutedAiGatewayErrorCode =
 
 export class RoutedAiGatewayError extends Error {
   readonly code: RoutedAiGatewayErrorCode;
+  readonly actualCostMinorUnits: number | undefined;
 
-  constructor(code: RoutedAiGatewayErrorCode, message: string) {
+  constructor(
+    code: RoutedAiGatewayErrorCode,
+    message: string,
+    actualCostMinorUnits?: number,
+  ) {
     super(message);
     this.name = 'RoutedAiGatewayError';
     this.code = code;
+    this.actualCostMinorUnits = actualCostMinorUnits;
   }
 }
 
@@ -111,6 +117,12 @@ export class RoutedAiGateway implements AiGateway {
 
     const maximumCost = intent.governance.maximumCostMinorUnits;
     const actualCost = proposal.provenance.costMinorUnits;
+    if (maximumCost !== undefined && actualCost === undefined) {
+      throw new RoutedAiGatewayError(
+        'AI_COST_EVIDENCE_REQUIRED',
+        'Provider cost evidence is required when an invocation has a cost ceiling.',
+      );
+    }
     if (
       maximumCost !== undefined
       && actualCost !== undefined
@@ -119,6 +131,7 @@ export class RoutedAiGateway implements AiGateway {
       throw new RoutedAiGatewayError(
         'AI_COST_LIMIT_EXCEEDED',
         `AI cost ${actualCost} exceeds the invocation ceiling ${maximumCost}.`,
+        actualCost,
       );
     }
     return proposal;

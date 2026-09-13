@@ -158,3 +158,36 @@ test("RoutedAiGateway routes EU GDPR intent to tenant-owned OpenAI adapter", asy
   assert.equal(proposal.provenance.region, "eu-west-1");
   assert.equal(proposal.status, "PROPOSAL");
 });
+
+test('RoutedAiGateway requires cost evidence when a ceiling is configured', async () => {
+  const gateway = new RoutedAiGateway({
+    connectors: [geminiConnector],
+    adapters: new Map([[geminiConnector.connectorKey, {
+      async invoke({ intent, connector }) {
+        return {
+          invocationId: intent.invocationId,
+          tenantId: intent.tenantId,
+          status: 'OBSERVATION' as const,
+          outputReference: 'artifact://output',
+          provenance: {
+            connectorKey: connector.connectorKey,
+            providerKey: connector.providerKey,
+            modelKey: 'test-model',
+            promptConfigurationKey: intent.promptConfiguration.key,
+            promptConfigurationVersion: intent.promptConfiguration.version,
+            sourceReferences: [intent.inputReference],
+            processedAt: '2026-09-13T15:00:00.000Z',
+          },
+        };
+      },
+    }]]),
+  });
+
+  await assert.rejects(() => gateway.invoke({
+    invocationId: 'cost-evidence-1', tenantId: 'tenant_us_001', operation: 'GENERATE',
+    purpose: 'Test governed cost evidence', inputReference: 'artifact://input',
+    promptConfiguration: { key: 'test', version: 1 },
+    governance: { requiredResidencyTags: ['US'], requiredComplianceTags: ['HIPAA'], maximumCostMinorUnits: 10 },
+    idempotencyKey: 'cost-evidence-1', requestedAt: '2026-09-13T15:00:00.000Z',
+  }), (error: unknown) => error instanceof Error && error.message.includes('cost evidence'));
+});
