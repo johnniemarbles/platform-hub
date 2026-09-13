@@ -1,3 +1,4 @@
+import { estimateAiCostMinorUnits } from './cost-tables.ts';
 import type { ConnectorDefinition } from "@platform-hub/provider-registry";
 import type {
   AiInvocationIntent,
@@ -137,8 +138,11 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
     const choice = data.choices?.[0];
     const generatedText = choice?.message?.content ?? "";
     enforceStructuredAiOutput(intent.operation, generatedText);
-    const totalTokens = data.usage?.total_tokens ?? 0;
-    const costMinorUnits = Math.ceil((totalTokens / 1_000) * 1);
+    const costMinorUnits = estimateAiCostMinorUnits({
+      modelKey,
+      inputTokens: data.usage?.prompt_tokens ?? 0,
+      outputTokens: data.usage?.completion_tokens ?? 0,
+    });
 
     const provenance: AiProvenance = {
       connectorKey: connector.connectorKey,
@@ -201,8 +205,11 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
     if (!Array.isArray(embedding) || embedding.length === 0) {
       throw new Error("AI_EMBEDDING_OUTPUT_INVALID");
     }
-    const totalTokens = data.usage?.total_tokens ?? data.usage?.prompt_tokens ?? 0;
-    const costMinorUnits = Math.max(1, Math.ceil((totalTokens / 1_000) * 1));
+    const costMinorUnits = estimateAiCostMinorUnits({
+      modelKey,
+      inputTokens: data.usage?.prompt_tokens ?? 0,
+      outputTokens: 0,
+    });
 
     const provenance: AiProvenance = {
       connectorKey: connector.connectorKey,

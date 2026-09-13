@@ -1,3 +1,4 @@
+import { estimateAiCostMinorUnits } from './cost-tables.ts';
 import type { ConnectorDefinition } from "@platform-hub/provider-registry";
 import type {
   AiInvocationIntent,
@@ -150,8 +151,11 @@ export class GeminiAiAdapter implements AiProviderAdapter {
     const firstCandidate = data.candidates?.[0];
     const generatedText = firstCandidate?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
     enforceStructuredAiOutput(intent.operation, generatedText);
-    const totalTokens = data.usageMetadata?.totalTokenCount ?? 0;
-    const costMinorUnits = Math.ceil((totalTokens / 1_000) * 1);
+    const costMinorUnits = estimateAiCostMinorUnits({
+      modelKey,
+      inputTokens: data.usageMetadata?.promptTokenCount ?? 0,
+      outputTokens: data.usageMetadata?.candidatesTokenCount ?? 0,
+    });
 
     const provenance: AiProvenance = {
       connectorKey: connector.connectorKey,

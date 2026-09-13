@@ -1,3 +1,4 @@
+import { estimateAiCostMinorUnits } from './cost-tables.ts';
 import type { ConnectorDefinition } from "@platform-hub/provider-registry";
 import type {
   AiInvocationIntent,
@@ -130,8 +131,11 @@ export class AnthropicAiAdapter implements AiProviderAdapter {
       .map((part) => part.text ?? "")
       .join("");
     enforceStructuredAiOutput(intent.operation, generatedText);
-    const totalTokens = (data.usage?.input_tokens ?? 0) + (data.usage?.output_tokens ?? 0);
-    const costMinorUnits = Math.max(1, Math.ceil((totalTokens / 1_000) * 1));
+    const costMinorUnits = estimateAiCostMinorUnits({
+      modelKey,
+      inputTokens: data.usage?.input_tokens ?? 0,
+      outputTokens: data.usage?.output_tokens ?? 0,
+    });
 
     const provenance: AiProvenance = {
       connectorKey: connector.connectorKey,
