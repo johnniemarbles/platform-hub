@@ -184,5 +184,6 @@ export * from './routing.ts';
 export * from './deepgram-stt-adapter.ts';
 export * from './elevenlabs-tts-adapter.ts';
 export * from './stream-conversation-adapter.ts';
+export * from './turn-stream-adapter.ts';
 export * from './adapter-map.ts';
 export * from './governed-credential-binding.ts';
