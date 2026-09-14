@@ -3,6 +3,7 @@ import test from 'node:test';
 import { randomBytes } from 'node:crypto';
 
 import {
+  CustodyFingerprintKeyError,
   credentialFingerprint,
   detectFingerprintCollisions,
   fingerprintsMatch,
@@ -21,7 +22,6 @@ test('fingerprint is stable for the same secret and key', () => {
 test('fingerprint discloses no character of the secret (§2.3, prohibition C1)', () => {
   const secret = 'SK-live-abcdef0123456789';
   const fingerprint = credentialFingerprint(secret, key);
-  // No 4+ character run of the secret may appear in the fingerprint.
   for (let i = 0; i + 4 <= secret.length; i += 1) {
     assert.equal(fingerprint.includes(secret.slice(i, i + 4)), false);
   }
@@ -35,10 +35,20 @@ test('a different platform key produces a different fingerprint (HMAC, not a bar
   );
 });
 
-test('a short fingerprint key is rejected', () => {
+test('a short fingerprint key is rejected by HMAC, empty env is rejected by parse', () => {
   assert.throws(() => credentialFingerprint('secret', randomBytes(16)));
-  assert.throws(() => parseFingerprintKey('deadbeef'));
-  assert.throws(() => parseFingerprintKey(undefined as any));
+  assert.throws(() => parseFingerprintKey(undefined as never), CustodyFingerprintKeyError);
+  assert.throws(() => parseFingerprintKey(''), CustodyFingerprintKeyError);
+});
+
+test('parseFingerprintKey accepts 64 hex or hashes a passphrase', () => {
+  const hex = 'ab'.repeat(32);
+  assert.equal(parseFingerprintKey(hex).length, 32);
+  assert.equal(parseFingerprintKey('railway-passphrase').length, 32);
+  assert.notEqual(
+    parseFingerprintKey('railway-passphrase').toString('hex'),
+    parseFingerprintKey('other-passphrase').toString('hex'),
+  );
 });
 
 test('the same fingerprint under two tenants is flagged (§2.3)', () => {

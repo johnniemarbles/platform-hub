@@ -1,25 +1,15 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 
-/**
- * Design spec §2.3 — fingerprints.
- *
- * BEMP prohibition C1 bans partial masking, and masking (SK…a91f) discloses
- * key material. But a tenant with three Twilio subaccounts genuinely needs to
- * know which key is installed.
- *
- * HMAC, not a bare hash: the value cannot be precomputed against a dictionary
- * even for a low-entropy secret. Zero bits of the secret are disclosed.
- */
+const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Crockford-ish; no I/O/0/1.
+export class CustodyFingerprintKeyError extends Error {
+  readonly code = 'CUSTODY_FINGERPRINT_KEY_MISSING';
+  constructor() {
+    super('Credential vault is not configured on this environment. Set CUSTODY_FINGERPRINT_KEY on brand-web and platform-web (64 hex characters, or any long passphrase).');
+    this.name = 'CustodyFingerprintKeyError';
+  }
+}
 
-/**
- * @param secret        the plaintext credential. Never persisted, never logged.
- * @param fingerprintKey a platform-wide HMAC key, distinct from any encryption
- *                       key, rotated independently. Read from
- *                       CUSTODY_FINGERPRINT_KEY (64 hex chars).
- * @returns "K7QM-2F9X"
- */
 export function credentialFingerprint(secret: string, fingerprintKey: Buffer): string {
   if (secret.length === 0) {
     throw new Error('cannot fingerprint an empty secret');
@@ -38,11 +28,16 @@ export function credentialFingerprint(secret: string, fingerprintKey: Buffer): s
   return `${out.slice(0, 4)}-${out.slice(4, 8)}`;
 }
 
+/** 64-char hex is used as-is. Any other non-empty value is SHA-256’d to 32 bytes. */
 export function parseFingerprintKey(hex: string | undefined): Buffer {
-  if (typeof hex !== 'string' || !/^[0-9a-fA-F]{64}$/.test(hex)) {
-    throw new Error('CUSTODY_FINGERPRINT_KEY must be 64 hex characters (32 bytes)');
+  const raw = typeof hex === 'string' ? hex.trim() : '';
+  if (raw === '') {
+    throw new CustodyFingerprintKeyError();
   }
-  return Buffer.from(hex, 'hex');
+  if (/^[0-9a-fA-F]{64}$/.test(raw)) {
+    return Buffer.from(raw, 'hex');
+  }
+  return createHash('sha256').update(raw, 'utf8').digest();
 }
 
 export function fingerprintsMatch(a: string, b: string): boolean {
@@ -52,11 +47,6 @@ export function fingerprintsMatch(a: string, b: string): boolean {
   return timingSafeEqual(left, right);
 }
 
-/**
- * §2.3 — the same fingerprint under two tenants is either a shared provider
- * account (a billing and blast-radius problem) or a credential leak.
- * Neither should be silent.
- */
 export interface FingerprintCollision {
   readonly fingerprint: string;
   readonly tenantIds: readonly string[];
