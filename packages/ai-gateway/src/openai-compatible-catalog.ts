@@ -119,6 +119,30 @@ export const NATIVE_LLM_PROVIDERS = [
   'anthropic',
 ] as const;
 
+export const VISION_OCR_PROVIDERS = [
+  {
+    providerKey: 'google-vision',
+    displayName: 'Google Cloud Vision',
+    capabilityKey: 'ai.vision_analyze',
+    notes: 'DOCUMENT_TEXT_DETECTION. Use a Cloud Vision API key, not a Gemini AI Studio key.',
+    keysUrl: 'https://console.cloud.google.com/apis/library/vision.googleapis.com',
+  },
+  {
+    providerKey: 'aws-textract',
+    displayName: 'AWS Textract',
+    capabilityKey: 'ai.vision_analyze',
+    notes: 'DetectDocumentText. Wrap accessKeyId/secretAccessKey/region JSON in custody.',
+    keysUrl: 'https://docs.aws.amazon.com/textract/latest/dg/API_DetectDocumentText.html',
+  },
+  {
+    providerKey: 'openai',
+    displayName: 'OpenAI Vision',
+    capabilityKey: 'ai.vision_analyze',
+    notes: 'Multimodal chat vision when an OpenAI connector is bound to VISION_ANALYZE.',
+    keysUrl: 'https://platform.openai.com/api-keys',
+  },
+] as const;
+
 export function openaiCompatibleProvider(
   providerKey: string,
 ): OpenAiCompatibleProvider | undefined {

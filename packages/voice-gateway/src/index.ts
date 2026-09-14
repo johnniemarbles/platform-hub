@@ -9,7 +9,6 @@ export interface VoiceIntelligenceIntent {
   readonly callId: string;
   readonly operation: VoiceIntelligenceOperation;
   readonly purpose: string;
-  /** Audio, transcript, or synthesis-input reference; never raw media. */
   readonly inputReference: string;
   readonly languageTag: string;
   readonly governance: {
@@ -84,10 +83,7 @@ export interface VoiceContractValidationIssue {
 
 export type VoiceContractValidationResult =
   | { readonly valid: true; readonly issues: readonly [] }
-  | {
-      readonly valid: false;
-      readonly issues: readonly VoiceContractValidationIssue[];
-    };
+  | { readonly valid: false; readonly issues: readonly VoiceContractValidationIssue[] };
 
 export function validateVoiceIntelligenceIntent(
   intent: VoiceIntelligenceIntent,
@@ -97,17 +93,10 @@ export function validateVoiceIntelligenceIntent(
   required(intent.tenantId, 'VOICE_TENANT_REQUIRED', 'tenantId', issues);
   required(intent.callId, 'VOICE_CALL_ID_REQUIRED', 'callId', issues);
   required(intent.purpose, 'VOICE_PURPOSE_REQUIRED', 'purpose', issues);
-  required(
-    intent.inputReference,
-    'VOICE_INPUT_REFERENCE_REQUIRED',
-    'inputReference',
-    issues,
-  );
+  required(intent.inputReference, 'VOICE_INPUT_REFERENCE_REQUIRED', 'inputReference', issues);
   required(intent.languageTag, 'VOICE_LANGUAGE_REQUIRED', 'languageTag', issues);
-
   if (
-    (intent.operation === 'TRANSCRIBE'
-      || intent.operation === 'STREAM_CONVERSATION')
+    (intent.operation === 'TRANSCRIBE' || intent.operation === 'STREAM_CONVERSATION')
     && !nonBlank(intent.governance.recordingConsentEvidenceReference)
   ) {
     issues.push({
@@ -115,53 +104,27 @@ export function validateVoiceIntelligenceIntent(
       path: 'governance.recordingConsentEvidenceReference',
     });
   }
-
   for (const [path, policy] of [
-    [
-      'governance.recordingRetentionPolicy',
-      intent.governance.recordingRetentionPolicy,
-    ],
-    [
-      'governance.transcriptRetentionPolicy',
-      intent.governance.transcriptRetentionPolicy,
-    ],
+    ['governance.recordingRetentionPolicy', intent.governance.recordingRetentionPolicy],
+    ['governance.transcriptRetentionPolicy', intent.governance.transcriptRetentionPolicy],
     ['governance.redactionPolicy', intent.governance.redactionPolicy],
   ] as const) {
-    if (
-      policy.key.trim() === ''
-      || !Number.isInteger(policy.version)
-      || policy.version <= 0
-    ) {
+    if (policy.key.trim() === '' || !Number.isInteger(policy.version) || policy.version <= 0) {
       issues.push({ code: 'VOICE_POLICY_REFERENCE_INVALID', path });
     }
   }
-
   if (intent.governance.jurisdictionTags.length === 0) {
-    issues.push({
-      code: 'VOICE_JURISDICTION_REQUIRED',
-      path: 'governance.jurisdictionTags',
-    });
+    issues.push({ code: 'VOICE_JURISDICTION_REQUIRED', path: 'governance.jurisdictionTags' });
   }
-  required(
-    intent.idempotencyKey,
-    'VOICE_IDEMPOTENCY_REQUIRED',
-    'idempotencyKey',
-    issues,
-  );
+  required(intent.idempotencyKey, 'VOICE_IDEMPOTENCY_REQUIRED', 'idempotencyKey', issues);
   if (!validInstant(intent.requestedAt)) {
     issues.push({ code: 'VOICE_REQUESTED_AT_INVALID', path: 'requestedAt' });
   }
   if (
     intent.governance.maximumCostMinorUnits !== undefined
-    && (
-      !Number.isInteger(intent.governance.maximumCostMinorUnits)
-      || intent.governance.maximumCostMinorUnits < 0
-    )
+    && (!Number.isInteger(intent.governance.maximumCostMinorUnits) || intent.governance.maximumCostMinorUnits < 0)
   ) {
-    issues.push({
-      code: 'VOICE_COST_LIMIT_INVALID',
-      path: 'governance.maximumCostMinorUnits',
-    });
+    issues.push({ code: 'VOICE_COST_LIMIT_INVALID', path: 'governance.maximumCostMinorUnits' });
   }
   return result(issues);
 }
@@ -177,17 +140,9 @@ export function validateVoiceIntelligenceObservation(
     || observation.callId !== intent.callId
     || observation.operation !== intent.operation
   ) {
-    issues.push({
-      code: 'VOICE_OBSERVATION_IDENTITY_MISMATCH',
-      path: 'observation',
-    });
+    issues.push({ code: 'VOICE_OBSERVATION_IDENTITY_MISMATCH', path: 'observation' });
   }
-  required(
-    observation.outputReference,
-    'VOICE_OUTPUT_REFERENCE_REQUIRED',
-    'outputReference',
-    issues,
-  );
+  required(observation.outputReference, 'VOICE_OUTPUT_REFERENCE_REQUIRED', 'outputReference', issues);
   for (const [path, value] of [
     ['provenance.connectorKey', observation.provenance.connectorKey],
     ['provenance.providerKey', observation.provenance.providerKey],
@@ -196,26 +151,14 @@ export function validateVoiceIntelligenceObservation(
     required(value, 'VOICE_PROVENANCE_REQUIRED', path, issues);
   }
   if (observation.provenance.sourceReferences.length === 0) {
-    issues.push({
-      code: 'VOICE_PROVENANCE_SOURCE_REQUIRED',
-      path: 'provenance.sourceReferences',
-    });
+    issues.push({ code: 'VOICE_PROVENANCE_SOURCE_REQUIRED', path: 'provenance.sourceReferences' });
   }
   if (!validInstant(observation.provenance.processedAt)) {
-    issues.push({
-      code: 'VOICE_PROCESSED_AT_INVALID',
-      path: 'provenance.processedAt',
-    });
+    issues.push({ code: 'VOICE_PROCESSED_AT_INVALID', path: 'provenance.processedAt' });
   }
   const duration = observation.provenance.audioDurationMilliseconds;
-  if (
-    duration !== undefined
-    && (!Number.isInteger(duration) || duration < 0)
-  ) {
-    issues.push({
-      code: 'VOICE_AUDIO_DURATION_INVALID',
-      path: 'provenance.audioDurationMilliseconds',
-    });
+  if (duration !== undefined && (!Number.isInteger(duration) || duration < 0)) {
+    issues.push({ code: 'VOICE_AUDIO_DURATION_INVALID', path: 'provenance.audioDurationMilliseconds' });
   }
   const cost = observation.provenance.costMinorUnits;
   if (cost !== undefined && (!Number.isInteger(cost) || cost < 0)) {
@@ -224,33 +167,22 @@ export function validateVoiceIntelligenceObservation(
   return result(issues);
 }
 
-function required(
-  value: string,
-  code: VoiceContractValidationCode,
-  path: string,
-  issues: VoiceContractValidationIssue[],
-): void {
+function required(value: string, code: VoiceContractValidationCode, path: string, issues: VoiceContractValidationIssue[]): void {
   if (value.trim() === '') issues.push({ code, path });
 }
-
 function nonBlank(value: string | undefined): boolean {
   return value !== undefined && value.trim() !== '';
 }
-
 function validInstant(value: string): boolean {
   return value.trim() !== '' && Number.isFinite(Date.parse(value));
 }
-
-function result(
-  issues: VoiceContractValidationIssue[],
-): VoiceContractValidationResult {
-  return issues.length === 0
-    ? { valid: true, issues: [] }
-    : { valid: false, issues };
+function result(issues: VoiceContractValidationIssue[]): VoiceContractValidationResult {
+  return issues.length === 0 ? { valid: true, issues: [] } : { valid: false, issues };
 }
 
 export * from './routing.ts';
-
 export * from './deepgram-stt-adapter.ts';
-
 export * from './elevenlabs-tts-adapter.ts';
+export * from './stream-conversation-adapter.ts';
+export * from './adapter-map.ts';
+export * from './governed-credential-binding.ts';

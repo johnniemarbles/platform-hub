@@ -196,5 +196,7 @@ export * from './prompt-resolver.ts';
 export * from './prompt-resolving-gateway.ts';
 export * from './openai-rerank.ts';
 export * from './openai-vision.ts';
+export * from './google-vision-adapter.ts';
+export * from './aws-textract-adapter.ts';
 export * from './build-worker-adapters.ts';
 export * from './openai-compatible-catalog.ts';

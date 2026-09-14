@@ -1,7 +1,9 @@
 import type { ConnectorDefinition } from '@platform-hub/provider-registry';
 import {
   AnthropicAiAdapter,
+  AwsTextractAdapter,
   GeminiAiAdapter,
+  GoogleVisionAdapter,
   OpenAiAiAdapter,
   OpenAiRerankAdapter,
   OpenAiVisionAdapter,
@@ -22,15 +24,16 @@ export interface BuildAiWorkerAdaptersInput {
 function adapterKind(connector: {
   readonly providerType: string;
   readonly providerKey: string;
-}): 'openai' | 'gemini' | 'anthropic' | null {
+}): 'openai' | 'gemini' | 'anthropic' | 'google-vision' | 'aws-textract' | null {
   const value = `${connector.providerType}:${connector.providerKey}`.toLowerCase();
+  if (value.includes('textract') || value.includes('aws-textract')) return 'aws-textract';
+  if (value.includes('google-vision') || value.includes('cloud-vision')) return 'google-vision';
   if (value.includes('openai')) return 'openai';
   if (value.includes('gemini') || value.includes('google-ai')) return 'gemini';
   if (value.includes('anthropic')) return 'anthropic';
   return null;
 }
 
-/** Provider adapters for durable AI job worker, operation-aware. */
 export function buildAiWorkerAdapters(
   input: BuildAiWorkerAdaptersInput,
 ): Map<string, AiProviderAdapter> {
@@ -43,7 +46,15 @@ export function buildAiWorkerAdapters(
   };
   for (const connector of input.connectors) {
     const kind = adapterKind(connector);
-    if (kind === 'openai') {
+    if (kind === 'aws-textract') {
+      if (input.operation === 'VISION_ANALYZE') {
+        adapters.set(connector.connectorKey, new AwsTextractAdapter(common));
+      }
+    } else if (kind === 'google-vision') {
+      if (input.operation === 'VISION_ANALYZE') {
+        adapters.set(connector.connectorKey, new GoogleVisionAdapter(common));
+      }
+    } else if (kind === 'openai') {
       if (input.operation === 'RERANK') {
         adapters.set(connector.connectorKey, new OpenAiRerankAdapter(common));
       } else if (input.operation === 'VISION_ANALYZE') {
