@@ -279,6 +279,13 @@ export async function runEnforcementSpine(
     });
     return finish('REFUSED', input.sender.reasonCode ?? 'DOMAIN_UNVERIFIED');
   }
+  if (input.sender.domainStatus === ('DEGRADED' as any) && input.intent.purpose === 'marketing') {
+    trace.fail('SENDER_DOMAIN', `sender status DEGRADED — marketing sends suspended for domain ${input.sender.domain ?? ''}`, {
+      message: 'This brand sender identity is in DEGRADED status. Marketing sends are blocked until domain reputation recovers; transactional sends remain operational.',
+      href: '/communications/domains',
+    });
+    return finish('REFUSED', 'BRAND_DEGRADED_MARKETING_BLOCKED');
+  }
   trace.pass('SENDER_DOMAIN', `${input.sender.fromAddress ?? ''} · domain ${input.sender.domainStatus ?? 'VERIFIED'}`);
 
   // ── 11 Connector routing ────────────────────────────────────────────────

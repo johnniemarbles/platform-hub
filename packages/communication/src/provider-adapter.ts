@@ -28,11 +28,13 @@ export interface CommunicationProviderSendRequest {
 
 export type CommunicationProviderSendStatus =
   | 'ACCEPTED'
+  | 'INDETERMINATE'
   | 'REJECTED'
   | 'RETRYABLE_FAILURE';
 
 export type CommunicationProviderSendReasonCode =
   | 'OK'
+  | 'ACCEPT_TIMEOUT'
   | 'RATE_LIMITED'
   | 'INVALID_RECIPIENT'
   | 'SENDER_REJECTED'
