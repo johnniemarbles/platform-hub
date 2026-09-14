@@ -1,17 +1,9 @@
 import { CustodyError, type CustodyMode } from './index.ts';
 import { credentialFingerprint } from './fingerprint.ts';
-import { probeFor, type ProbeResult } from './probe.ts';
+import { probeFor } from './probe-dispatch.ts';
+import type { ProbeResult } from './probe.ts';
 import { delegatedSecretPath, type SecretVault } from './secret-vault.ts';
 import { WrappingKeyStore, zeroise, type WrappedSecretEnvelope } from './wrapping.ts';
-
-/**
- * Design spec §2.2 — Mode 1 intake, steps 4–8.
- *
- * unwrap in memory → probe the provider → write to vault → zeroise buffers.
- *
- * The plaintext exists inside this function and nowhere else. It is never
- * returned, never logged, never placed on an object that outlives the call.
- */
 
 export interface CredentialIntakeRequest {
   readonly tenantId: string;
@@ -19,16 +11,10 @@ export interface CredentialIntakeRequest {
   readonly providerKey: string;
   readonly custodyMode: Extract<CustodyMode, 'DELEGATED'>;
   readonly envelope: WrappedSecretEnvelope;
-  /** Non-secret companion fields: accountSid, region, apiKey, domain. */
   readonly parameters: Readonly<Record<string, string>>;
   readonly correlationId: string;
 }
 
-/**
- * What crosses back to the control plane. Note what is absent: there is no
- * field here capable of holding a secret, and no field that could be widened
- * into one without a type change a reviewer would see.
- */
 export interface CredentialIntakeResult {
   readonly credentialRef: string;
   readonly keyVersion: string;
@@ -89,7 +75,6 @@ export class CredentialIntakeService {
         throw new CustodyError('CUSTODY_PAYLOAD_INVALID', 'The credential is empty.');
       }
 
-      // §2.4 — never persist a credential that has never succeeded once.
       const result = await probe.probe({
         providerKey: request.providerKey,
         secret: plaintext,
@@ -106,7 +91,6 @@ export class CredentialIntakeService {
           probeStatus: 'INVALID',
           warnings: result.warnings,
           probedAt: result.checkedAt,
-          ...(result.error !== undefined ? {} : {}),
         } satisfies CredentialIntakeResult;
       }
 
@@ -130,8 +114,6 @@ export class CredentialIntakeService {
         );
       }
 
-      // The vault decides the reference; we assert it matches the derived,
-      // tenant-scoped path so a misconfigured vault cannot cross tenants.
       const expected = delegatedSecretPath(request.tenantId, request.connectorKey, version);
       if (written.reference !== expected) {
         throw new CustodyError(
@@ -150,21 +132,12 @@ export class CredentialIntakeService {
         probedAt: result.checkedAt,
       };
     } finally {
-      // §2.2 step 8. Runs on every path, including a thrown probe error.
       if (vaultSecret !== null) zeroise(vaultSecret);
       zeroise(secret);
     }
   }
 }
 
-/**
- * Provider probes may need non-secret companion fields which are not useful to
- * the control plane after intake, but some providers also require those values
- * again at invocation time. Twilio is the canonical case: the auth token is
- * secret while accountSid is supplied separately during probe, yet both are
- * required to authenticate a send. Persist a provider-specific runtime bundle
- * inside the vault rather than leaking companion values into connector rows.
- */
 function runtimeCredentialPayload(
   providerKey: string,
   plaintextSecret: string,
@@ -196,16 +169,6 @@ function runtimeCredentialPayload(
   return Buffer.from(plaintextSecret, 'utf8');
 }
 
-/**
- * §2.7 — continuous credential health.
- *
- * A key that worked at setup fails later: rotated by the customer, permissions
- * narrowed, account suspended, card declined. Silence here is the worst outcome.
- *
- * FAILING fires before sends fail. A FAILING BYOK connector halves its
- * bulk-plane allocation immediately and leaves transactional untouched.
- * Marketing degrades first. Always.
- */
 export interface CredentialHealthTransition {
   readonly connectorKey: string;
   readonly previous: 'VALID' | 'FAILING' | 'INVALID';
@@ -224,18 +187,15 @@ export function nextCredentialHealth(input: {
   readonly probeError?: string;
 }): CredentialHealthTransition {
   const failures = input.probeValid ? 0 : input.consecutiveFailures + 1;
-
   let next: 'VALID' | 'FAILING' | 'INVALID';
   if (input.probeValid) next = 'VALID';
   else if (failures >= 3) next = 'INVALID';
   else next = 'FAILING';
-
   return {
     connectorKey: input.connectorKey,
     previous: input.previous,
     next,
     consecutiveFailures: failures,
-    // Marketing degrades first, always. Transactional is never reduced by a probe.
     bulkAllocationMultiplier: next === 'VALID' ? 1 : next === 'FAILING' ? 0.5 : 0,
     transactionalAllocationMultiplier: next === 'INVALID' ? 0 : 1,
     ...(input.probeError !== undefined ? { error: input.probeError } : {}),
