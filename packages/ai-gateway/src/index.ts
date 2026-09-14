@@ -300,3 +300,7 @@ export * from './prompt-resolver.ts';
 export * from './prompt-resolving-gateway.ts';
 
 export * from './openai-rerank.ts';
+
+export * from './openai-vision.ts';
+
+export * from './build-worker-adapters.ts';
