@@ -15,7 +15,6 @@ import {
 export interface VoiceProviderAdapter {
   invoke(input: {
     readonly intent: VoiceIntelligenceIntent;
-    /** Contains managed credential references only, never raw credentials. */
     readonly connector: ConnectorDefinition;
   }): Promise<VoiceIntelligenceObservation>;
 }
@@ -30,7 +29,6 @@ export type RoutedVoiceGatewayErrorCode =
 
 export class RoutedVoiceGatewayError extends Error {
   readonly code: RoutedVoiceGatewayErrorCode;
-
   constructor(code: RoutedVoiceGatewayErrorCode, message: string) {
     super(message);
     this.name = 'RoutedVoiceGatewayError';
@@ -53,9 +51,7 @@ export class RoutedVoiceGateway implements VoiceGateway {
     this.#policies = input.policies ?? [];
   }
 
-  async invoke(
-    intent: VoiceIntelligenceIntent,
-  ): Promise<VoiceIntelligenceObservation> {
+  async invoke(intent: VoiceIntelligenceIntent): Promise<VoiceIntelligenceObservation> {
     const validation = validateVoiceIntelligenceIntent(intent);
     if (!validation.valid) {
       throw new RoutedVoiceGatewayError(
@@ -66,9 +62,7 @@ export class RoutedVoiceGateway implements VoiceGateway {
 
     const capabilityKey = voiceCapabilityKey(intent.operation);
     const policy = this.#policies.find(
-      (candidate) =>
-        candidate.tenantId === intent.tenantId
-        && candidate.capabilityKey === capabilityKey,
+      (candidate) => candidate.tenantId === intent.tenantId && candidate.capabilityKey === capabilityKey,
     );
     const route = routeConnector(
       {
@@ -95,14 +89,8 @@ export class RoutedVoiceGateway implements VoiceGateway {
       );
     }
 
-    const observation = await adapter.invoke({
-      intent,
-      connector: route.connector,
-    });
-    const observationValidation = validateVoiceIntelligenceObservation(
-      intent,
-      observation,
-    );
+    const observation = await adapter.invoke({ intent, connector: route.connector });
+    const observationValidation = validateVoiceIntelligenceObservation(intent, observation);
     if (!observationValidation.valid) {
       throw new RoutedVoiceGatewayError(
         'VOICE_OBSERVATION_INVALID',
@@ -112,11 +100,13 @@ export class RoutedVoiceGateway implements VoiceGateway {
 
     const maximumCost = intent.governance.maximumCostMinorUnits;
     const actualCost = observation.provenance.costMinorUnits;
-    if (
-      maximumCost !== undefined
-      && actualCost !== undefined
-      && actualCost > maximumCost
-    ) {
+    if (maximumCost !== undefined && actualCost === undefined) {
+      throw new RoutedVoiceGatewayError(
+        'VOICE_COST_EVIDENCE_REQUIRED',
+        'Provider cost evidence is required when a voice request has a cost ceiling.',
+      );
+    }
+    if (maximumCost !== undefined && actualCost !== undefined && actualCost > maximumCost) {
       throw new RoutedVoiceGatewayError(
         'VOICE_COST_LIMIT_EXCEEDED',
         `Voice cost ${actualCost} exceeds the request ceiling ${maximumCost}.`,
@@ -126,8 +116,6 @@ export class RoutedVoiceGateway implements VoiceGateway {
   }
 }
 
-export function voiceCapabilityKey(
-  operation: VoiceIntelligenceOperation,
-): string {
+export function voiceCapabilityKey(operation: VoiceIntelligenceOperation): string {
   return `voice.${operation.toLocaleLowerCase()}`;
 }

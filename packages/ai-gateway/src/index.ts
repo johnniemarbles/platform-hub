@@ -29,10 +29,6 @@ export interface AiInvocationIntent {
 }
 
 export interface AiGateway {
-  /**
-   * Returns an observation or proposal. The gateway has no domain-mutation
-   * method; callers must validate and submit a separate authorized command.
-   */
   invoke(intent: AiInvocationIntent): Promise<AiProposal>;
 }
 
@@ -41,11 +37,6 @@ export interface AiProposal {
   readonly tenantId: string;
   readonly status: 'OBSERVATION' | 'PROPOSAL';
   readonly outputReference: string;
-  /**
-   * Ephemeral provider output. Application workers may persist this into a
-   * tenant-scoped artifact store, but job/event history must retain only an
-   * opaque outputReference.
-   */
   readonly outputContent?: {
     readonly mediaType: string;
     readonly value: string;
@@ -96,106 +87,52 @@ export interface AiContractValidationIssue {
 
 export type AiContractValidationResult =
   | { readonly valid: true; readonly issues: readonly [] }
-  | {
-      readonly valid: false;
-      readonly issues: readonly AiContractValidationIssue[];
-    };
+  | { readonly valid: false; readonly issues: readonly AiContractValidationIssue[] };
 
-export function validateAiInvocationIntent(
-  intent: AiInvocationIntent,
-): AiContractValidationResult {
+export function validateAiInvocationIntent(intent: AiInvocationIntent): AiContractValidationResult {
   const issues: AiContractValidationIssue[] = [];
   required(intent.invocationId, 'AI_INVOCATION_ID_REQUIRED', 'invocationId', issues);
   required(intent.tenantId, 'AI_TENANT_REQUIRED', 'tenantId', issues);
   required(intent.purpose, 'AI_PURPOSE_REQUIRED', 'purpose', issues);
-  required(
-    intent.inputReference,
-    'AI_INPUT_REFERENCE_REQUIRED',
-    'inputReference',
-    issues,
-  );
-  required(
-    intent.promptConfiguration.key,
-    'AI_PROMPT_KEY_REQUIRED',
-    'promptConfiguration.key',
-    issues,
-  );
-  if (
-    !Number.isInteger(intent.promptConfiguration.version)
-    || intent.promptConfiguration.version <= 0
-  ) {
-    issues.push({
-      code: 'AI_PROMPT_VERSION_INVALID',
-      path: 'promptConfiguration.version',
-    });
+  required(intent.inputReference, 'AI_INPUT_REFERENCE_REQUIRED', 'inputReference', issues);
+  required(intent.promptConfiguration.key, 'AI_PROMPT_KEY_REQUIRED', 'promptConfiguration.key', issues);
+  if (!Number.isInteger(intent.promptConfiguration.version) || intent.promptConfiguration.version <= 0) {
+    issues.push({ code: 'AI_PROMPT_VERSION_INVALID', path: 'promptConfiguration.version' });
   }
-  required(
-    intent.idempotencyKey,
-    'AI_IDEMPOTENCY_KEY_REQUIRED',
-    'idempotencyKey',
-    issues,
-  );
+  required(intent.idempotencyKey, 'AI_IDEMPOTENCY_KEY_REQUIRED', 'idempotencyKey', issues);
   if (!validInstant(intent.requestedAt)) {
     issues.push({ code: 'AI_REQUESTED_AT_INVALID', path: 'requestedAt' });
   }
   if (
     intent.governance.maximumCostMinorUnits !== undefined
-    && (
-      !Number.isInteger(intent.governance.maximumCostMinorUnits)
-      || intent.governance.maximumCostMinorUnits < 0
-    )
+    && (!Number.isInteger(intent.governance.maximumCostMinorUnits) || intent.governance.maximumCostMinorUnits < 0)
   ) {
-    issues.push({
-      code: 'AI_COST_LIMIT_INVALID',
-      path: 'governance.maximumCostMinorUnits',
-    });
+    issues.push({ code: 'AI_COST_LIMIT_INVALID', path: 'governance.maximumCostMinorUnits' });
   }
   return result(issues);
 }
 
-export function validateAiProposal(
-  intent: AiInvocationIntent,
-  proposal: AiProposal,
-): AiContractValidationResult {
+export function validateAiProposal(intent: AiInvocationIntent, proposal: AiProposal): AiContractValidationResult {
   const issues: AiContractValidationIssue[] = [];
   if (proposal.invocationId !== intent.invocationId) {
-    issues.push({
-      code: 'AI_PROPOSAL_INVOCATION_MISMATCH',
-      path: 'invocationId',
-    });
+    issues.push({ code: 'AI_PROPOSAL_INVOCATION_MISMATCH', path: 'invocationId' });
   }
   if (proposal.tenantId !== intent.tenantId) {
     issues.push({ code: 'AI_PROPOSAL_TENANT_MISMATCH', path: 'tenantId' });
   }
-  required(
-    proposal.outputReference,
-    'AI_OUTPUT_REFERENCE_REQUIRED',
-    'outputReference',
-    issues,
-  );
+  required(proposal.outputReference, 'AI_OUTPUT_REFERENCE_REQUIRED', 'outputReference', issues);
   if (
     proposal.outputContent !== undefined
-    && (
-      proposal.outputContent.mediaType.trim() === ''
-      || proposal.outputContent.value.trim() === ''
-    )
+    && (proposal.outputContent.mediaType.trim() === '' || proposal.outputContent.value.trim() === '')
   ) {
-    issues.push({
-      code: 'AI_OUTPUT_CONTENT_INVALID',
-      path: 'outputContent',
-    });
+    issues.push({ code: 'AI_OUTPUT_CONTENT_INVALID', path: 'outputContent' });
   }
   if (
     proposal.confidence !== undefined
-    && (
-      !Number.isFinite(proposal.confidence)
-      || proposal.confidence < 0
-      || proposal.confidence > 1
-    )
+    && (!Number.isFinite(proposal.confidence) || proposal.confidence < 0 || proposal.confidence > 1)
   ) {
     issues.push({ code: 'AI_CONFIDENCE_INVALID', path: 'confidence' });
   }
-
   for (const [path, value] of [
     ['provenance.connectorKey', proposal.provenance.connectorKey],
     ['provenance.providerKey', proposal.provenance.providerKey],
@@ -204,60 +141,35 @@ export function validateAiProposal(
     required(value, 'AI_PROVENANCE_REQUIRED', path, issues);
   }
   if (
-    proposal.provenance.promptConfigurationKey
-      !== intent.promptConfiguration.key
-    || proposal.provenance.promptConfigurationVersion
-      !== intent.promptConfiguration.version
+    proposal.provenance.promptConfigurationKey !== intent.promptConfiguration.key
+    || proposal.provenance.promptConfigurationVersion !== intent.promptConfiguration.version
   ) {
-    issues.push({
-      code: 'AI_PROVENANCE_PROMPT_MISMATCH',
-      path: 'provenance.promptConfiguration',
-    });
+    issues.push({ code: 'AI_PROVENANCE_PROMPT_MISMATCH', path: 'provenance.promptConfiguration' });
   }
   if (proposal.provenance.sourceReferences.length === 0) {
-    issues.push({
-      code: 'AI_PROVENANCE_SOURCE_REQUIRED',
-      path: 'provenance.sourceReferences',
-    });
+    issues.push({ code: 'AI_PROVENANCE_SOURCE_REQUIRED', path: 'provenance.sourceReferences' });
   }
   if (!validInstant(proposal.provenance.processedAt)) {
-    issues.push({
-      code: 'AI_PROVENANCE_PROCESSED_AT_INVALID',
-      path: 'provenance.processedAt',
-    });
+    issues.push({ code: 'AI_PROVENANCE_PROCESSED_AT_INVALID', path: 'provenance.processedAt' });
   }
   if (
     proposal.provenance.costMinorUnits !== undefined
-    && (
-      !Number.isInteger(proposal.provenance.costMinorUnits)
-      || proposal.provenance.costMinorUnits < 0
-    )
+    && (!Number.isInteger(proposal.provenance.costMinorUnits) || proposal.provenance.costMinorUnits < 0)
   ) {
-    issues.push({
-      code: 'AI_PROVENANCE_COST_INVALID',
-      path: 'provenance.costMinorUnits',
-    });
+    issues.push({ code: 'AI_PROVENANCE_COST_INVALID', path: 'provenance.costMinorUnits' });
   }
   if (
-    (proposal.provenance.modelPolicyKey === undefined)
-      !== (proposal.provenance.modelPolicyVersion === undefined)
-    || (proposal.provenance.modelPolicyKey !== undefined
-      && proposal.provenance.modelPolicyKey.trim() === '')
+    (proposal.provenance.modelPolicyKey === undefined) !== (proposal.provenance.modelPolicyVersion === undefined)
+    || (proposal.provenance.modelPolicyKey !== undefined && proposal.provenance.modelPolicyKey.trim() === '')
     || (proposal.provenance.modelPolicyVersion !== undefined
-      && (!Number.isInteger(proposal.provenance.modelPolicyVersion)
-        || proposal.provenance.modelPolicyVersion <= 0))
+      && (!Number.isInteger(proposal.provenance.modelPolicyVersion) || proposal.provenance.modelPolicyVersion <= 0))
   ) {
     issues.push({ code: 'AI_PROVENANCE_REQUIRED', path: 'provenance.modelPolicy' });
   }
   return result(issues);
 }
 
-function required(
-  value: string,
-  code: AiContractValidationCode,
-  path: string,
-  issues: AiContractValidationIssue[],
-): void {
+function required(value: string, code: AiContractValidationCode, path: string, issues: AiContractValidationIssue[]): void {
   if (value.trim() === '') issues.push({ code, path });
 }
 
@@ -265,42 +177,24 @@ function validInstant(value: string): boolean {
   return value.trim() !== '' && Number.isFinite(Date.parse(value));
 }
 
-function result(
-  issues: AiContractValidationIssue[],
-): AiContractValidationResult {
-  return issues.length === 0
-    ? { valid: true, issues: [] }
-    : { valid: false, issues };
+function result(issues: AiContractValidationIssue[]): AiContractValidationResult {
+  return issues.length === 0 ? { valid: true, issues: [] } : { valid: false, issues };
 }
 
 export * from './routing.ts';
-
 export * from './jobs.ts';
-
 export * from './job-repository.ts';
-
 export * from './gemini-adapter.ts';
-
 export * from './openai-adapter.ts';
-
 export * from './anthropic-adapter.ts';
-
 export * from './governed-credential-binding.ts';
-
 export * from './provider-errors.ts';
-
 export * from './model-execution-policy.ts';
-
 export * from './recorded-gateway.ts';
-
 export * from './cost-tables.ts';
-
 export * from './prompt-resolver.ts';
-
 export * from './prompt-resolving-gateway.ts';
-
 export * from './openai-rerank.ts';
-
 export * from './openai-vision.ts';
-
 export * from './build-worker-adapters.ts';
+export * from './openai-compatible-catalog.ts';
