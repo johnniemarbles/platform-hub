@@ -3,12 +3,18 @@ import type {
   CommunicationProviderSendRequest,
   CommunicationProviderSendResult,
 } from './provider-adapter.ts';
-import type { TwilioCredentialsProvider, TwilioCredentialRequest } from './twilio-sms-whatsapp-adapter.ts';
+import type { TwilioCredentialsProvider } from './twilio-sms-whatsapp-adapter.ts';
+import {
+  resolveTwilioVoiceSignalingUrl,
+  resolveTwilioVoiceStatusCallbackUrl,
+} from './twilio-voice-signaling.ts';
 
 export interface TwilioVoiceAdapterOptions {
   readonly credentials: TwilioCredentialsProvider;
   readonly fetchImpl?: typeof fetch;
   readonly now?: () => string;
+  readonly signalingBaseUrl?: string;
+  readonly connectorKey?: string;
 }
 
 interface TwilioAcceptedResponse {
@@ -22,11 +28,15 @@ export class TwilioVoiceAdapter implements CommunicationProviderAdapter {
   readonly #credentials: TwilioCredentialsProvider;
   readonly #fetch: typeof fetch;
   readonly #now: () => string;
+  readonly #signalingBaseUrl?: string;
+  readonly #connectorKey?: string;
 
   constructor(options: TwilioVoiceAdapterOptions) {
     this.#credentials = options.credentials;
     this.#fetch = options.fetchImpl ?? fetch;
     this.#now = options.now ?? (() => new Date().toISOString());
+    this.#signalingBaseUrl = options.signalingBaseUrl;
+    this.#connectorKey = options.connectorKey;
   }
 
   async send(request: CommunicationProviderSendRequest): Promise<CommunicationProviderSendResult> {
@@ -58,19 +68,31 @@ export class TwilioVoiceAdapter implements CommunicationProviderAdapter {
       return rejected('SENDER_REJECTED', 'A verified sender phone number is required.');
     }
 
-    // Since the rendered body contains the webhook URL for the TwiML callback, we extract it here.
-    // Assuming the URL is provided in the rendered body or title.
-    const url = request.rendered.body;
-    if (typeof url !== 'string' || url.trim().length === 0) {
-      return rejected('PROVIDER_REJECTED', 'Voice signaling URL is required in message body.');
+    const url = resolveTwilioVoiceSignalingUrl({
+      renderedBody: request.rendered.body,
+      tenantId: request.tenantId,
+      connectorKey: this.#connectorKey,
+      baseUrl: this.#signalingBaseUrl,
+    });
+    if (url === null) {
+      return rejected('PROVIDER_REJECTED', 'Voice signaling URL is required in message body or EXPADIO_VOICE_TWIML_BASE.');
     }
 
     const auth = btoa(`${creds.accountSid}:${creds.authToken}`);
-    
+
     const formData = new URLSearchParams();
     formData.append('To', phone);
     formData.append('From', from);
     formData.append('Url', url);
+    const statusCallback = resolveTwilioVoiceStatusCallbackUrl({
+      tenantId: request.tenantId,
+      connectorKey: this.#connectorKey,
+      baseUrl: this.#signalingBaseUrl,
+    });
+    if (statusCallback !== null) {
+      formData.append('StatusCallback', statusCallback);
+      formData.append('StatusCallbackEvent', 'initiated ringing answered completed');
+    }
 
     const response = await this.#fetch(`https://api.twilio.com/2010-04-01/Accounts/${creds.accountSid}/Calls.json`, {
       method: 'POST',
