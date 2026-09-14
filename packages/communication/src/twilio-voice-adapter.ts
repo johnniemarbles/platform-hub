@@ -35,8 +35,8 @@ export class TwilioVoiceAdapter implements CommunicationProviderAdapter {
     this.#credentials = options.credentials;
     this.#fetch = options.fetchImpl ?? fetch;
     this.#now = options.now ?? (() => new Date().toISOString());
-    this.#signalingBaseUrl = options.signalingBaseUrl;
-    this.#connectorKey = options.connectorKey;
+    if (options.signalingBaseUrl !== undefined) this.#signalingBaseUrl = options.signalingBaseUrl;
+    if (options.connectorKey !== undefined) this.#connectorKey = options.connectorKey;
   }
 
   async send(request: CommunicationProviderSendRequest): Promise<CommunicationProviderSendResult> {
@@ -71,8 +71,8 @@ export class TwilioVoiceAdapter implements CommunicationProviderAdapter {
     const url = resolveTwilioVoiceSignalingUrl({
       renderedBody: request.rendered.body,
       tenantId: request.tenantId,
-      connectorKey: this.#connectorKey,
-      baseUrl: this.#signalingBaseUrl,
+      ...(this.#connectorKey !== undefined ? { connectorKey: this.#connectorKey } : {}),
+      ...(this.#signalingBaseUrl !== undefined ? { baseUrl: this.#signalingBaseUrl } : {}),
     });
     if (url === null) {
       return rejected('PROVIDER_REJECTED', 'Voice signaling URL is required in message body or EXPADIO_VOICE_TWIML_BASE.');
@@ -86,8 +86,8 @@ export class TwilioVoiceAdapter implements CommunicationProviderAdapter {
     formData.append('Url', url);
     const statusCallback = resolveTwilioVoiceStatusCallbackUrl({
       tenantId: request.tenantId,
-      connectorKey: this.#connectorKey,
-      baseUrl: this.#signalingBaseUrl,
+      ...(this.#connectorKey !== undefined ? { connectorKey: this.#connectorKey } : {}),
+      ...(this.#signalingBaseUrl !== undefined ? { baseUrl: this.#signalingBaseUrl } : {}),
     });
     if (statusCallback !== null) {
       formData.append('StatusCallback', statusCallback);
