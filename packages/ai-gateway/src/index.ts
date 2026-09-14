@@ -296,3 +296,7 @@ export * from './recorded-gateway.ts';
 export * from './cost-tables.ts';
 
 export * from './prompt-resolver.ts';
+
+export * from './prompt-resolving-gateway.ts';
+
+export * from './openai-rerank.ts';
