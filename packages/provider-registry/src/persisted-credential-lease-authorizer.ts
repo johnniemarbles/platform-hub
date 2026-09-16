@@ -63,7 +63,6 @@ export class PersistedCredentialLeaseAuthorizer implements CredentialLeaseAuthor
           type: 'connector-credential',
           id: query.connectorKey,
           tenantId: query.tenantId,
-          organizationId: context.organizationId,
           classification: 'sensitive',
           compartment: 'provider-credentials',
         },
