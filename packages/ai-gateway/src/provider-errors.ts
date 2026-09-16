@@ -100,5 +100,6 @@ export function safeAiFailure(error: unknown): {
     ? /^([A-Z][A-Z0-9_]{2,80})(?::|$)/u.exec(error.message)?.[1]
     : undefined;
   const code = safeCode?.startsWith('AI_') ? safeCode : 'AI_EXECUTION_FAILED';
-  return { code, reason: `${code}: AI execution failed safely.`, retryable: false };
+  const originalMessage = error instanceof Error ? error.message : String(error);
+  return { code, reason: `${code}: ${originalMessage}`, retryable: false };
 }
