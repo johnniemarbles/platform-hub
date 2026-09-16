@@ -82,3 +82,25 @@ test('handles rate limits and auth failures for voice', async () => {
     reason: 'Provider is temporarily unavailable.',
   });
 });
+
+test('preserves sanitized Twilio voice rejection detail for delivery diagnostics', async () => {
+  const adapter = new TwilioVoiceAdapter({
+    credentials: async () => ({
+      accountSid: 'AC_MOCK_ACCOUNT_SID_FOR_TESTS',
+      authToken: 'auth_token',
+    }),
+    fetchImpl: async () => new Response(JSON.stringify({
+      code: 21215,
+      message: 'From phone number +0987654321 is not a valid outgoing caller ID for AC_MOCK_ACCOUNT_SID_FOR_TESTS.',
+      more_info: 'https://www.twilio.com/docs/errors/21215',
+    }), { status: 400 }),
+  });
+
+  const result = await adapter.send(baseRequest);
+
+  assert.equal(result.status, 'REJECTED');
+  assert.equal(result.reasonCode, 'PROVIDER_REJECTED');
+  assert.match(result.reason ?? '', /Twilio voice rejected with HTTP 400/);
+  assert.match(result.reason ?? '', /code 21215/);
+  assert.doesNotMatch(result.reason ?? '', /AC_MOCK_ACCOUNT_SID_FOR_TESTS/);
+});

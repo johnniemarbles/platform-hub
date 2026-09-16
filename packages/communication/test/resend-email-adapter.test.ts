@@ -147,3 +147,21 @@ test('does not convert network exceptions before the send-attempt retry layer', 
   });
   await assert.rejects(() => adapter.send(baseRequest), /network unavailable/);
 });
+
+test('preserves sanitized Resend rejection detail for delivery diagnostics', async () => {
+  const adapter = new ResendEmailAdapter({
+    apiToken: async () => 're_test_token',
+    fetchImpl: async () => new Response(JSON.stringify({
+      message: 'Domain is not verified for sender hello@example.test',
+      error: 'validation_error',
+    }), { status: 422 }),
+  });
+
+  const result = await adapter.send(baseRequest);
+
+  assert.equal(result.status, 'REJECTED');
+  assert.equal(result.reasonCode, 'PROVIDER_REJECTED');
+  assert.match(result.reason ?? '', /Resend email rejected with HTTP 422/);
+  assert.match(result.reason ?? '', /Domain is not verified/);
+  assert.doesNotMatch(result.reason ?? '', /re_test_token/);
+});

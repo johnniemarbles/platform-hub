@@ -30,6 +30,12 @@ interface ResendAcceptedResponse {
   readonly id?: unknown;
 }
 
+interface ProviderErrorPayload {
+  readonly message?: unknown;
+  readonly error?: unknown;
+  readonly name?: unknown;
+}
+
 export class ResendEmailAdapter implements CommunicationProviderAdapter {
   readonly adapterKey = 'resend-email-v1';
   readonly supportedChannels = ['email'] as const;
@@ -129,20 +135,47 @@ export class ResendEmailAdapter implements CommunicationProviderAdapter {
       };
     }
 
+    const providerDetail = await providerErrorDetail(response, 'email');
+
     if (response.status === 401 || response.status === 403) {
-      return rejected('AUTHENTICATION_FAILED', 'Provider authentication failed.');
+      return rejected('AUTHENTICATION_FAILED', providerDetail ?? 'Provider authentication failed.');
     }
 
     if (response.status >= 500) {
       return {
         status: 'RETRYABLE_FAILURE',
         reasonCode: 'PROVIDER_UNAVAILABLE',
-        reason: 'Provider is temporarily unavailable.',
+        reason: providerDetail ?? 'Provider is temporarily unavailable.',
       };
     }
 
-    return rejected('PROVIDER_REJECTED', 'Provider rejected the email request.');
+    return rejected('PROVIDER_REJECTED', providerDetail ?? 'Provider rejected the email request.');
   }
+}
+
+async function providerErrorDetail(response: Response, label: string): Promise<string | null> {
+  const text = await response.text().catch(() => '');
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return null;
+  let message = trimmed;
+  try {
+    const parsed = JSON.parse(trimmed) as ProviderErrorPayload;
+    const candidate = [parsed.message, parsed.error, parsed.name]
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      .join(' ');
+    if (candidate.trim().length > 0) message = candidate.trim();
+  } catch {
+    // Non-JSON provider bodies are still useful diagnostics after redaction.
+  }
+  return `Resend ${label} rejected with HTTP ${response.status}: ${redactProviderDetail(message)}`;
+}
+
+function redactProviderDetail(value: string): string {
+  return value
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/giu, 'Bearer [redacted]')
+    .replace(/Basic\s+[A-Za-z0-9._~+/=-]+/giu, 'Basic [redacted]')
+    .replace(/sk_[A-Za-z0-9._-]+/gu, 'sk_[redacted]')
+    .slice(0, 500);
 }
 
 function rejected(

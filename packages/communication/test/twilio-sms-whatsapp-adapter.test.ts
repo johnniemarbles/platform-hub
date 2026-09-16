@@ -105,3 +105,27 @@ test('handles rate limits and auth failures', async () => {
     reason: 'Provider is temporarily unavailable.',
   });
 });
+
+test('preserves sanitized Twilio SMS rejection detail for delivery diagnostics', async () => {
+  const adapter = new TwilioSmsWhatsappAdapter({
+    credentials: async () => ({
+      accountSid: 'AC_MOCK_ACCOUNT_SID_FOR_TESTS',
+      authToken: 'auth_token',
+      messagingServiceSid: 'MG_MOCK_MSG_SERVICE_SID_FOR_TESTS',
+    }),
+    fetchImpl: async () => new Response(JSON.stringify({
+      code: 21608,
+      message: 'The number +1234567890 is unverified. Account AC_MOCK_ACCOUNT_SID_FOR_TESTS cannot message it.',
+      more_info: 'https://www.twilio.com/docs/errors/21608',
+    }), { status: 400 }),
+  });
+
+  const result = await adapter.send(baseRequest);
+
+  assert.equal(result.status, 'REJECTED');
+  assert.equal(result.reasonCode, 'PROVIDER_REJECTED');
+  assert.match(result.reason ?? '', /Twilio sms rejected with HTTP 400/);
+  assert.match(result.reason ?? '', /code 21608/);
+  assert.doesNotMatch(result.reason ?? '', /AC_MOCK_ACCOUNT_SID_FOR_TESTS/);
+  assert.doesNotMatch(result.reason ?? '', /MG_MOCK_MSG_SERVICE_SID_FOR_TESTS/);
+});

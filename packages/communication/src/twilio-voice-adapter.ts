@@ -21,6 +21,12 @@ interface TwilioAcceptedResponse {
   readonly sid?: unknown;
 }
 
+interface TwilioErrorResponse {
+  readonly message?: unknown;
+  readonly code?: unknown;
+  readonly more_info?: unknown;
+}
+
 export class TwilioVoiceAdapter implements CommunicationProviderAdapter {
   readonly adapterKey = 'twilio-voice-v1';
   readonly supportedChannels = ['voice'] as const;
@@ -128,20 +134,51 @@ export class TwilioVoiceAdapter implements CommunicationProviderAdapter {
       };
     }
 
+    const providerDetail = await twilioErrorDetail(response);
+
     if (response.status === 401 || response.status === 403) {
-      return rejected('AUTHENTICATION_FAILED', 'Provider authentication failed.');
+      return rejected('AUTHENTICATION_FAILED', providerDetail ?? 'Provider authentication failed.');
     }
 
     if (response.status >= 500) {
       return {
         status: 'RETRYABLE_FAILURE',
         reasonCode: 'PROVIDER_UNAVAILABLE',
-        reason: 'Provider is temporarily unavailable.',
+        reason: providerDetail ?? 'Provider is temporarily unavailable.',
       };
     }
 
-    return rejected('PROVIDER_REJECTED', 'Provider rejected the request.');
+    return rejected('PROVIDER_REJECTED', providerDetail ?? 'Provider rejected the request.');
   }
+}
+
+async function twilioErrorDetail(response: Response): Promise<string | null> {
+  const text = await response.text().catch(() => '');
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return null;
+  let message = trimmed;
+  try {
+    const parsed = JSON.parse(trimmed) as TwilioErrorResponse;
+    const code = typeof parsed.code === 'number' || typeof parsed.code === 'string'
+      ? `code ${parsed.code}`
+      : '';
+    const detail = typeof parsed.message === 'string' ? parsed.message : '';
+    const moreInfo = typeof parsed.more_info === 'string' ? parsed.more_info : '';
+    const candidate = [code, detail, moreInfo].filter((part) => part.trim().length > 0).join(' ');
+    if (candidate.trim().length > 0) message = candidate.trim();
+  } catch {
+    // Twilio usually returns JSON, but retain a sanitized text body if it does not.
+  }
+  return `Twilio voice rejected with HTTP ${response.status}: ${redactTwilioDetail(message)}`;
+}
+
+function redactTwilioDetail(value: string): string {
+  return value
+    .replace(/Basic\s+[A-Za-z0-9._~+/=-]+/giu, 'Basic [redacted]')
+    .replace(/AC[a-f0-9]{32}/giu, 'AC[redacted]')
+    .replace(/SK[a-f0-9]{32}/giu, 'SK[redacted]')
+    .replace(/MG[a-f0-9]{32}/giu, 'MG[redacted]')
+    .slice(0, 500);
 }
 
 function rejected(
