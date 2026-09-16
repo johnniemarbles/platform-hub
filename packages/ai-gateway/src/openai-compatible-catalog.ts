@@ -147,7 +147,7 @@ export function openaiCompatibleProvider(
   providerKey: string,
 ): OpenAiCompatibleProvider | undefined {
   const key = providerKey.trim().toLowerCase();
-  return OPENAI_COMPATIBLE_PROVIDERS.find((item) => item.providerKey === key);
+  return OPENAI_COMPATIBLE_PROVIDERS.find((item) => key.includes(item.providerKey));
 }
 
 export function isGenerateLlmProvider(providerKey: string): boolean {

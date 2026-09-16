@@ -10,9 +10,15 @@ import {
 test('catalog includes DeepSeek and NVIDIA free-tier NIM', () => {
   const deepseek = openaiCompatibleProvider('deepseek');
   const nvidia = openaiCompatibleProvider('nvidia');
+  const nvidiaByok = openaiCompatibleProvider('nvidia-byok-5974');
+  const deepseekByok = openaiCompatibleProvider('deepseek-byok-1234');
   assert.ok(deepseek);
   assert.ok(nvidia);
+  assert.ok(nvidiaByok);
+  assert.ok(deepseekByok);
   assert.equal(nvidia?.costTier, 'FREE_TIER');
+  assert.equal(nvidiaByok?.providerKey, 'nvidia');
+  assert.equal(deepseekByok?.providerKey, 'deepseek');
   assert.ok(OPENAI_COMPATIBLE_PROVIDERS.some((item) => item.providerKey === 'groq'));
 });
 
