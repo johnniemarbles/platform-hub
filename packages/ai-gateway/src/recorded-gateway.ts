@@ -66,6 +66,7 @@ export class RecordedAiGateway implements AiGateway {
       });
       return proposal;
     } catch (error) {
+      console.error('[RecordedAiGateway] Original error from gateway invoke:', error);
       const failure = safeAiFailure(error);
       await append(this.#repository, {
         ...eventBase(registration, 2, 'FAILED', this.#now()),
