@@ -42,9 +42,7 @@ export async function routeConnectorFromRegistry(
   repository: ProviderRegistryRepository,
   request: ConnectorRouteRequest,
 ): Promise<ConnectorRouteResult> {
-  const [connectors, policy] = await Promise.all([
-    repository.listConnectors(request.tenantId, request.capabilityKey),
-    repository.loadRoutingPolicy(request.tenantId, request.capabilityKey),
-  ]);
+  const connectors = await repository.listConnectors(request.tenantId, request.capabilityKey);
+  const policy = await repository.loadRoutingPolicy(request.tenantId, request.capabilityKey);
   return routeConnector(request, connectors, policy ?? undefined);
 }
