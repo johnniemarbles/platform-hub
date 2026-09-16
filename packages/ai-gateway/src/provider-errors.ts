@@ -81,11 +81,19 @@ export function safeAiFailure(error: unknown): {
   readonly reason: string;
   readonly retryable: boolean;
 } {
-  if (error instanceof AiProviderError) {
+  if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' && error.code.startsWith('AI_')) {
+    if (error instanceof AiProviderError) {
+      return {
+        code: error.code,
+        reason: `${error.code}: ${error.providerKey} provider request failed.`,
+        retryable: error.retryable,
+      };
+    }
+    const message = 'message' in error && typeof error.message === 'string' ? error.message : `${error.code}: AI execution failed.`;
     return {
       code: error.code,
-      reason: `${error.code}: ${error.providerKey} provider request failed.`,
-      retryable: error.retryable,
+      reason: message.startsWith(error.code) ? message : `${error.code}: ${message}`,
+      retryable: false,
     };
   }
   const safeCode = error instanceof Error
