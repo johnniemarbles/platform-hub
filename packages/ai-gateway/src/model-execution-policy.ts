@@ -24,7 +24,7 @@ export function defaultAiModelExecutionPolicy(provider: string): AiModelExecutio
   if (key === 'anthropic') {
     return {
       policyKey: 'ai.model.anthropic.default', version: 1, providerKey: 'anthropic',
-      generativeModelKey: 'claude-sonnet-4-20250514', embeddingModelKey: 'claude-sonnet-4-20250514',
+      generativeModelKey: 'claude-sonnet-5', embeddingModelKey: 'claude-sonnet-5',
       maximumInputCharacters: 50_000, maximumOutputTokens: 2_048, temperature: 0.7,
     };
   }

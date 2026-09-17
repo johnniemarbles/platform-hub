@@ -96,12 +96,12 @@ export class AnthropicAiAdapter implements AiProviderAdapter {
       ? `${intent.inputReference}\n\nRespond with valid JSON only.`
       : intent.inputReference;
 
+    // temperature is deprecated for current Claude models (the API rejects
+    // it outright with a 400), so it is never sent -- deterministic output
+    // for CLASSIFY/EXTRACT is enforced downstream via enforceStructuredAiOutput.
     const requestBody: Record<string, unknown> = {
       model: modelKey,
       max_tokens: this.#executionPolicy.maximumOutputTokens,
-      temperature: intent.operation === "EXTRACT" || intent.operation === "CLASSIFY"
-        ? 0
-        : this.#executionPolicy.temperature,
       messages: [{ role: "user", content: userContent }],
     };
     if (system !== undefined) {

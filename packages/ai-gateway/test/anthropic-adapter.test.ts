@@ -66,7 +66,7 @@ test("AnthropicAiAdapter invokes Messages API and returns validated proposal", a
   assert.equal(requestedUrl, "https://api.anthropic.com/v1/messages");
   assert.equal(requestHeaders["x-api-key"], "mock-anthropic-key");
   assert.equal(requestHeaders["anthropic-version"], "2023-06-01");
-  assert.equal(requestBody.model, "claude-sonnet-4-20250514");
+  assert.equal(requestBody.model, "claude-sonnet-5");
   assert.equal(proposal.status, "OBSERVATION");
   assert.equal(proposal.outputContent?.value, "Hello from Claude.");
   assert.equal(proposal.provenance.modelPolicyKey, "ai.model.anthropic.default");
