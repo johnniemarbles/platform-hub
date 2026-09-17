@@ -609,8 +609,66 @@ export const cloudflareProbe: CredentialProbe = {
   },
 };
 
+/**
+ * GitHub — GET /repos/{owner}/{repo}. Confirms the token can read the target
+ * repository and reports whether it has push access, which is the minimum
+ * needed to open a branch and a pull request. This probe never confirms (and
+ * this package never grants) the ability to merge -- that capability is
+ * intentionally never modeled anywhere in this repo's credential system.
+ */
+export const githubProbe: CredentialProbe = {
+  providerKey: 'github',
+  async probe(input) {
+    const fetchImpl = input.fetchImpl ?? fetch;
+    const owner = (input.parameters.owner ?? '').trim();
+    const repo = (input.parameters.repo ?? '').trim();
+    if (owner === '' || repo === '') {
+      return {
+        valid: false, providerKey: 'github', detectedCapabilities: [], warnings: [],
+        error: 'Repository owner and name are required.', checkedAt: nowIso(input),
+      };
+    }
+    const result = await call(fetchImpl, `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${input.secret}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+    const body = result.body as { permissions?: { push?: boolean; pull?: boolean }; message?: string } | null;
+    if (!result.ok) {
+      return {
+        valid: false,
+        providerKey: 'github',
+        detectedCapabilities: [],
+        warnings: [],
+        error: body?.message ?? result.error ?? `GitHub returned HTTP ${result.status}.`,
+        checkedAt: nowIso(input),
+      };
+    }
+    const canPush = body?.permissions?.push === true;
+    const warnings: ProbeWarning[] = [];
+    if (!canPush) {
+      warnings.push({
+        code: 'GITHUB_PUSH_NOT_CONFIRMED',
+        severity: 'WARNING',
+        message: 'GitHub did not report push access on this repository for the token, so opening a draft branch will fail. Confirm the token has "Contents: Read and write" and "Pull requests: Read and write" permissions.',
+      });
+    }
+    return {
+      valid: true,
+      providerKey: 'github',
+      detectedCapabilities: canPush ? ['ops.github.pr_draft'] : [],
+      warnings,
+      checkedAt: nowIso(input),
+    };
+  },
+};
+
 export const PROBE_REGISTRY: Readonly<Record<string, CredentialProbe>> = {
   cloudflare: cloudflareProbe,
+  github: githubProbe,
   twilio: twilioProbe,
   'twilio-sms': twilioProbe,
   'twilio-whatsapp': twilioProbe,
