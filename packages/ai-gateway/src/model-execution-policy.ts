@@ -43,7 +43,7 @@ export function defaultAiModelExecutionPolicy(provider: string): AiModelExecutio
   }
   return {
     policyKey: 'ai.model.gemini.default', version: 1, providerKey: 'google-ai',
-    generativeModelKey: 'gemini-2.0-flash', embeddingModelKey: 'gemini-embedding-001',
+    generativeModelKey: 'gemini-3.6-flash', embeddingModelKey: 'gemini-embedding-001',
     maximumInputCharacters: 50_000, maximumOutputTokens: 2_048, temperature: 0.7,
   };
 }

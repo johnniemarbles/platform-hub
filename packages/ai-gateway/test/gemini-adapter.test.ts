@@ -80,7 +80,7 @@ test("GeminiAiAdapter invokes generateContent, parses response and sets provenan
 
   const proposal = await adapter.invoke({ intent, connector });
 
-  assert.ok(requestedUrl.includes("gemini-2.0-flash:generateContent"));
+  assert.ok(requestedUrl.includes("gemini-3.6-flash:generateContent"));
   assert.doesNotMatch(requestedUrl, /mock-gemini-key-123|[?&]key=/);
   assert.equal((requestHeaders as Record<string, string>)["X-Goog-Api-Key"], "mock-gemini-key-123");
   assert.equal(requestBody.contents[0].parts[0].text, intent.inputReference);
@@ -92,8 +92,11 @@ test("GeminiAiAdapter invokes generateContent, parses response and sets provenan
   assert.equal(proposal.status, "OBSERVATION");
   assert.equal(proposal.provenance.connectorKey, connector.connectorKey);
   assert.equal(proposal.provenance.providerKey, connector.providerKey);
-  assert.equal(proposal.provenance.modelKey, "gemini-2.0-flash");
-  assert.equal(proposal.provenance.costMinorUnits, 1);
+  assert.equal(proposal.provenance.modelKey, "gemini-3.6-flash");
+  // gemini-3.6-flash has no entry in cost-tables.ts yet (its real per-token
+  // pricing isn't verified), so this correctly falls back to the UNKNOWN
+  // default rate rather than a fabricated price.
+  assert.equal(proposal.provenance.costMinorUnits, 4);
   assert.deepEqual(proposal.provenance.sourceReferences, [intent.inputReference, intent.contextReference]);
 
   const validation = validateAiProposal(intent, proposal);
