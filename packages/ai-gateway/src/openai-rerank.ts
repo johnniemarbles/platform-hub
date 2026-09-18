@@ -115,10 +115,12 @@ export class OpenAiRerankAdapter implements AiProviderAdapter {
     const raw = data.choices?.[0]?.message?.content ?? '';
     const ranked = normalizeRanked(raw, parsed.documents);
 
+    const inputTokens = data.usage?.prompt_tokens ?? 0;
+    const outputTokens = data.usage?.completion_tokens ?? 0;
     const costMinorUnits = estimateAiCostMinorUnits({
       modelKey: this.#rerankModelKey,
-      inputTokens: data.usage?.prompt_tokens ?? 0,
-      outputTokens: data.usage?.completion_tokens ?? 0,
+      inputTokens,
+      outputTokens,
     });
 
     const provenance: AiProvenance = {
@@ -136,6 +138,8 @@ export class OpenAiRerankAdapter implements AiProviderAdapter {
       processedAt,
       ...(connector.region !== undefined ? { region: connector.region } : {}),
       costMinorUnits,
+      inputTokens,
+      outputTokens,
     };
 
     return {
