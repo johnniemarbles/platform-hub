@@ -145,10 +145,12 @@ export class OpenAiVisionAdapter implements AiProviderAdapter {
       throw new Error('AI_VISION_OUTPUT_INVALID');
     }
 
+    const inputTokens = data.usage?.prompt_tokens ?? 0;
+    const outputTokens = data.usage?.completion_tokens ?? 0;
     const costMinorUnits = estimateAiCostMinorUnits({
       modelKey: this.#visionModelKey,
-      inputTokens: data.usage?.prompt_tokens ?? 0,
-      outputTokens: data.usage?.completion_tokens ?? 0,
+      inputTokens,
+      outputTokens,
     });
 
     const provenance: AiProvenance = {
@@ -166,6 +168,8 @@ export class OpenAiVisionAdapter implements AiProviderAdapter {
       processedAt,
       ...(connector.region !== undefined ? { region: connector.region } : {}),
       costMinorUnits,
+      inputTokens,
+      outputTokens,
     };
 
     return {
