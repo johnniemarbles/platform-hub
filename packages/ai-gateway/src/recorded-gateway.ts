@@ -5,11 +5,45 @@ import { replayAiJob } from './job-repository.ts';
 import type { AiJobRegistration, AiJobRepository } from './job-repository.ts';
 import { safeAiFailure } from './provider-errors.ts';
 
+export interface AiQuotaCheckResult {
+  readonly allowed: boolean;
+  readonly operation: AiInvocationIntent['operation'] | null;
+  readonly period: 'DAILY' | 'MONTHLY';
+  readonly limitCostMinorUnits: number;
+  readonly currentSpendMinorUnits: number;
+}
+
+/**
+ * Checked once per invocation, before the underlying gateway (and therefore
+ * before any provider is ever called) -- a rolling tenant spend ceiling, not
+ * the per-job maximumCostMinorUnits ceiling AiJobRepository already enforces
+ * after the fact. Returning null means no quota is configured for this
+ * tenant/operation, which is the default, unlimited state.
+ */
+export interface AiQuotaEnforcer {
+  check(input: {
+    readonly tenantId: string;
+    readonly operation: AiInvocationIntent['operation'];
+  }): Promise<AiQuotaCheckResult | null>;
+}
+
+export class AiQuotaExceededError extends Error {
+  readonly code = 'AI_QUOTA_EXCEEDED' as const;
+  readonly result: AiQuotaCheckResult;
+
+  constructor(result: AiQuotaCheckResult) {
+    super(`AI_QUOTA_EXCEEDED: tenant AI spend already at or over its ${result.period.toLowerCase()} limit.`);
+    this.name = 'AiQuotaExceededError';
+    this.result = result;
+  }
+}
+
 export interface RecordedAiGatewayOptions {
   readonly gateway: AiGateway;
   readonly repository: AiJobRepository;
   readonly actorSubjectId: string;
   readonly now?: () => string;
+  readonly quotaEnforcer?: AiQuotaEnforcer;
 }
 
 /**
@@ -23,6 +57,7 @@ export class RecordedAiGateway implements AiGateway {
   readonly #repository: AiJobRepository;
   readonly #actorSubjectId: string;
   readonly #now: () => string;
+  readonly #quotaEnforcer: AiQuotaEnforcer | undefined;
 
   constructor(options: RecordedAiGatewayOptions) {
     if (options.actorSubjectId.trim() === '') throw new Error('AI_RECORDED_GATEWAY_ACTOR_REQUIRED');
@@ -30,6 +65,7 @@ export class RecordedAiGateway implements AiGateway {
     this.#repository = options.repository;
     this.#actorSubjectId = options.actorSubjectId;
     this.#now = options.now ?? (() => new Date().toISOString());
+    this.#quotaEnforcer = options.quotaEnforcer;
   }
 
   async invoke(intent: AiInvocationIntent): Promise<AiProposal> {
@@ -56,6 +92,18 @@ export class RecordedAiGateway implements AiGateway {
     }
 
     await append(this.#repository, eventBase(registration, 1, 'STARTED', this.#now()));
+
+    const quota = await this.#quotaEnforcer?.check({ tenantId: intent.tenantId, operation: intent.operation });
+    if (quota !== undefined && quota !== null && !quota.allowed) {
+      const quotaError = new AiQuotaExceededError(quota);
+      await append(this.#repository, {
+        ...eventBase(registration, 2, 'FAILED', this.#now()),
+        type: 'FAILED', failureCode: quotaError.code,
+        reason: quotaError.message,
+      });
+      throw quotaError;
+    }
+
     try {
       const proposal = await this.#gateway.invoke(intent);
       await append(this.#repository, {

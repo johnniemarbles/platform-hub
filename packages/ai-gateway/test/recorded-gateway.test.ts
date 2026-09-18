@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  AiQuotaExceededError,
   RecordedAiGateway,
   type AiGateway,
   type AiInvocationIntent,
   type AiJobEvent,
   type AiJobRegistration,
   type AiJobRepository,
+  type AiQuotaCheckResult,
+  type AiQuotaEnforcer,
 } from '../src/index.ts';
 
 class Repository implements AiJobRepository {
@@ -62,4 +65,42 @@ test('records only a normalized failure and rejects replay without another provi
   assert.doesNotMatch(repository.events[1]?.reason ?? '', /SENSITIVE/);
   await assert.rejects(() => recorded.invoke(intent), /REPLAY_REQUIRES_DURABLE_OUTPUT/);
   assert.equal(calls, 1);
+});
+
+test('a quota enforcer that denies the request blocks the call before the provider is ever reached', async () => {
+  const repository = new Repository();
+  let providerCalls = 0;
+  const gateway: AiGateway = { async invoke() { providerCalls += 1; throw new Error('should never be called'); } };
+  const deniedResult: AiQuotaCheckResult = {
+    allowed: false, operation: 'GENERATE', period: 'DAILY',
+    limitCostMinorUnits: 1000, currentSpendMinorUnits: 1200,
+  };
+  const quotaEnforcer: AiQuotaEnforcer = { async check() { return deniedResult; } };
+  const recorded = new RecordedAiGateway({ gateway, repository, actorSubjectId: 'user-1', quotaEnforcer });
+
+  await assert.rejects(() => recorded.invoke(intent), AiQuotaExceededError);
+  assert.equal(providerCalls, 0);
+  assert.deepEqual(repository.events.map((event) => event.type), ['STARTED', 'FAILED']);
+  assert.equal(repository.events[1]?.type === 'FAILED' ? repository.events[1].failureCode : null, 'AI_QUOTA_EXCEEDED');
+});
+
+test('a quota enforcer that allows the request, or reports no quota configured, lets the provider run', async () => {
+  for (const check of [
+    async () => ({ allowed: true, operation: 'GENERATE', period: 'DAILY', limitCostMinorUnits: 1000, currentSpendMinorUnits: 10 } as AiQuotaCheckResult),
+    async () => null,
+  ]) {
+    const repository = new Repository();
+    let providerCalls = 0;
+    const gateway: AiGateway = { async invoke(value) { providerCalls += 1; return {
+      invocationId: value.invocationId, tenantId: value.tenantId, status: 'OBSERVATION',
+      outputReference: 'artifact://output',
+      provenance: { connectorKey: 'connector', providerKey: 'openai', modelKey: 'model',
+        promptConfigurationKey: value.promptConfiguration.key,
+        promptConfigurationVersion: value.promptConfiguration.version,
+        sourceReferences: [value.inputReference], processedAt: '2026-09-13T16:00:01.000Z' },
+    }; } };
+    const recorded = new RecordedAiGateway({ gateway, repository, actorSubjectId: 'user-1', quotaEnforcer: { check } });
+    await recorded.invoke(intent);
+    assert.equal(providerCalls, 1);
+  }
 });
