@@ -131,10 +131,12 @@ export class AnthropicAiAdapter implements AiProviderAdapter {
       .map((part) => part.text ?? "")
       .join("");
     enforceStructuredAiOutput(intent.operation, generatedText);
+    const inputTokens = data.usage?.input_tokens ?? 0;
+    const outputTokens = data.usage?.output_tokens ?? 0;
     const costMinorUnits = estimateAiCostMinorUnits({
       modelKey,
-      inputTokens: data.usage?.input_tokens ?? 0,
-      outputTokens: data.usage?.output_tokens ?? 0,
+      inputTokens,
+      outputTokens,
     });
 
     const provenance: AiProvenance = {
@@ -152,6 +154,8 @@ export class AnthropicAiAdapter implements AiProviderAdapter {
       processedAt,
       ...(connector.region !== undefined ? { region: connector.region } : {}),
       costMinorUnits,
+      inputTokens,
+      outputTokens,
     };
 
     return {

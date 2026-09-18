@@ -154,10 +154,12 @@ export class GeminiAiAdapter implements AiProviderAdapter {
     const firstCandidate = data.candidates?.[0];
     const generatedText = firstCandidate?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
     enforceStructuredAiOutput(intent.operation, generatedText);
+    const inputTokens = data.usageMetadata?.promptTokenCount ?? 0;
+    const outputTokens = data.usageMetadata?.candidatesTokenCount ?? 0;
     const costMinorUnits = estimateAiCostMinorUnits({
       modelKey,
-      inputTokens: data.usageMetadata?.promptTokenCount ?? 0,
-      outputTokens: data.usageMetadata?.candidatesTokenCount ?? 0,
+      inputTokens,
+      outputTokens,
     });
 
     const provenance: AiProvenance = {
@@ -172,6 +174,8 @@ export class GeminiAiAdapter implements AiProviderAdapter {
       processedAt,
       ...(connector.region !== undefined ? { region: connector.region } : {}),
       costMinorUnits,
+      inputTokens,
+      outputTokens,
     };
 
     return {
@@ -223,9 +227,10 @@ export class GeminiAiAdapter implements AiProviderAdapter {
       throw new Error("AI_EMBEDDING_OUTPUT_INVALID");
     }
 
+    const inputTokens = Math.max(1, Math.ceil(intent.inputReference.length / 4));
     const costMinorUnits = estimateAiCostMinorUnits({
       modelKey,
-      inputTokens: Math.max(1, Math.ceil(intent.inputReference.length / 4)),
+      inputTokens,
       outputTokens: 0,
     });
 
@@ -241,6 +246,8 @@ export class GeminiAiAdapter implements AiProviderAdapter {
       processedAt,
       ...(connector.region !== undefined ? { region: connector.region } : {}),
       costMinorUnits,
+      inputTokens,
+      outputTokens: 0,
     };
 
     return {

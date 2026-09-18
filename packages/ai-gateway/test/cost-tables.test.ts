@@ -11,6 +11,18 @@ test('lookup known openai mini pricing', () => {
   assert.equal(price.outputPerMillionMinorUnits, 6000);
 });
 
+test('lookup anthropic sonnet key', () => {
+  const price = lookupAiTokenPrice('claude-sonnet-4-20250514');
+  assert.equal(price.inputPerMillionMinorUnits, 30_000);
+  assert.equal(price.outputPerMillionMinorUnits, 150_000);
+});
+
+test('lookup gemini flash', () => {
+  const price = lookupAiTokenPrice('gemini-2.0-flash');
+  assert.equal(price.inputPerMillionMinorUnits, 1_000);
+  assert.equal(price.outputPerMillionMinorUnits, 4_000);
+});
+
 test('estimate cost uses ceiling and minimum 1', () => {
   const cost = estimateAiCostMinorUnits({
     modelKey: 'gpt-4o-mini',
@@ -34,4 +46,13 @@ test('embedding-only cost', () => {
   });
   // 10000 * 200 / 1e6 = 2
   assert.equal(cost, 2);
+});
+
+test('mistral large estimate non-zero', () => {
+  const cost = estimateAiCostMinorUnits({
+    modelKey: 'mistral-large-latest',
+    inputTokens: 1_000_000,
+    outputTokens: 0,
+  });
+  assert.equal(cost, 5_000);
 });

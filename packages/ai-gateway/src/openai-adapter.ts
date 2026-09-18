@@ -138,10 +138,12 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
     const choice = data.choices?.[0];
     const generatedText = choice?.message?.content ?? "";
     enforceStructuredAiOutput(intent.operation, generatedText);
+    const inputTokens = data.usage?.prompt_tokens ?? 0;
+    const outputTokens = data.usage?.completion_tokens ?? 0;
     const costMinorUnits = estimateAiCostMinorUnits({
       modelKey,
-      inputTokens: data.usage?.prompt_tokens ?? 0,
-      outputTokens: data.usage?.completion_tokens ?? 0,
+      inputTokens,
+      outputTokens,
     });
 
     const provenance: AiProvenance = {
@@ -156,6 +158,8 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
       processedAt,
       ...(connector.region !== undefined ? { region: connector.region } : {}),
       costMinorUnits,
+      inputTokens,
+      outputTokens,
     };
 
     return {
@@ -205,9 +209,10 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
     if (!Array.isArray(embedding) || embedding.length === 0) {
       throw new Error("AI_EMBEDDING_OUTPUT_INVALID");
     }
+    const inputTokens = data.usage?.prompt_tokens ?? 0;
     const costMinorUnits = estimateAiCostMinorUnits({
       modelKey,
-      inputTokens: data.usage?.prompt_tokens ?? 0,
+      inputTokens,
       outputTokens: 0,
     });
 
@@ -223,6 +228,8 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
       processedAt,
       ...(connector.region !== undefined ? { region: connector.region } : {}),
       costMinorUnits,
+      inputTokens,
+      outputTokens: 0,
     };
 
     return {

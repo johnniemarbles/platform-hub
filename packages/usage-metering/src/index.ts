@@ -257,3 +257,4 @@ function validInstant(value: string): boolean {
 }
 
 export * from './repository.ts';
+export * from './ai-proposal-usage.ts';

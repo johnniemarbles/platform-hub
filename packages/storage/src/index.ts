@@ -59,6 +59,10 @@ export interface DurableArtifactWriteInput {
   readonly providerCostOwnership: 'BYOK' | 'EXPADIO_MANAGED';
   readonly confidence?: number;
   readonly correlationId?: string;
+  /** Provider-reported prompt/input tokens (AI only). */
+  readonly inputTokens?: number;
+  /** Provider-reported completion/output tokens (AI only). */
+  readonly outputTokens?: number;
   readonly requiredResidencyTags: readonly string[];
   readonly requiredComplianceTags: readonly string[];
 }

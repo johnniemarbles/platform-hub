@@ -57,6 +57,10 @@ export interface AiProvenance {
   readonly processedAt: string;
   readonly region?: string;
   readonly costMinorUnits?: number;
+  /** Optional provider-reported prompt tokens for usage ledger. */
+  readonly inputTokens?: number;
+  /** Optional provider-reported completion tokens for usage ledger. */
+  readonly outputTokens?: number;
 }
 
 export type AiContractValidationCode =
@@ -78,7 +82,8 @@ export type AiContractValidationCode =
   | 'AI_PROVENANCE_PROMPT_MISMATCH'
   | 'AI_PROVENANCE_SOURCE_REQUIRED'
   | 'AI_PROVENANCE_PROCESSED_AT_INVALID'
-  | 'AI_PROVENANCE_COST_INVALID';
+  | 'AI_PROVENANCE_COST_INVALID'
+  | 'AI_PROVENANCE_TOKEN_INVALID';
 
 export interface AiContractValidationIssue {
   readonly code: AiContractValidationCode;
@@ -159,6 +164,18 @@ export function validateAiProposal(intent: AiInvocationIntent, proposal: AiPropo
     issues.push({ code: 'AI_PROVENANCE_COST_INVALID', path: 'provenance.costMinorUnits' });
   }
   if (
+    proposal.provenance.inputTokens !== undefined
+    && (!Number.isInteger(proposal.provenance.inputTokens) || proposal.provenance.inputTokens < 0)
+  ) {
+    issues.push({ code: 'AI_PROVENANCE_TOKEN_INVALID', path: 'provenance.inputTokens' });
+  }
+  if (
+    proposal.provenance.outputTokens !== undefined
+    && (!Number.isInteger(proposal.provenance.outputTokens) || proposal.provenance.outputTokens < 0)
+  ) {
+    issues.push({ code: 'AI_PROVENANCE_TOKEN_INVALID', path: 'provenance.outputTokens' });
+  }
+  if (
     (proposal.provenance.modelPolicyKey === undefined) !== (proposal.provenance.modelPolicyVersion === undefined)
     || (proposal.provenance.modelPolicyKey !== undefined && proposal.provenance.modelPolicyKey.trim() === '')
     || (proposal.provenance.modelPolicyVersion !== undefined
@@ -200,3 +217,4 @@ export * from './google-vision-adapter.ts';
 export * from './aws-textract-adapter.ts';
 export * from './build-worker-adapters.ts';
 export * from './openai-compatible-catalog.ts';
+export * from './workload-tiers.ts';
