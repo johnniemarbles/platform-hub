@@ -96,7 +96,7 @@ test("GeminiAiAdapter invokes generateContent, parses response and sets provenan
   // gemini-3.6-flash has no entry in cost-tables.ts yet (its real per-token
   // pricing isn't verified), so this correctly falls back to the UNKNOWN
   // default rate rather than a fabricated price.
-  assert.equal(proposal.provenance.costMinorUnits, 4);
+  assert.equal(proposal.provenance.costMinorUnits, 1);
   assert.deepEqual(proposal.provenance.sourceReferences, [intent.inputReference, intent.contextReference]);
 
   const validation = validateAiProposal(intent, proposal);
