@@ -14,6 +14,7 @@ export { LLM_COMPAT_PROBES, anthropicProbe } from './llm-probes.ts';
 export * from './secret-vault.ts';
 export * from './intake.ts';
 export * from './revocation.ts';
+export * from './custody-ticket.ts';
 
 export type CustodyMode =
   | 'PLATFORM_MANAGED'
