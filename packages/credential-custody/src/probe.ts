@@ -215,6 +215,69 @@ export const geminiProbe: CredentialProbe = {
   },
 };
 
+/**
+ * Railway (Tigris) storage bucket — signed ListObjectsV2 with max-keys=1.
+ * Read-only, matches the "every probe is read-only" rule above: it lists at
+ * most one key, it never writes. accessKeyId, endpoint, and bucket are
+ * non-secret companion parameters (the endpoint and bucket name are already
+ * deployment configuration, not something worth re-typing into the intake
+ * form); only the secret access key is ever wrapped in the browser.
+ */
+export const railwayBucketProbe: CredentialProbe = {
+  providerKey: 'railway-bucket',
+  async probe(input) {
+    const fetchImpl = input.fetchImpl ?? fetch;
+    const accessKeyId = input.parameters.accessKeyId ?? '';
+    const endpoint = input.parameters.endpoint ?? '';
+    const bucket = input.parameters.bucket ?? '';
+    const region = input.parameters.region ?? 'auto';
+    if (accessKeyId === '' || endpoint === '' || bucket === '') {
+      return {
+        valid: false, providerKey: 'railway-bucket', detectedCapabilities: [], warnings: [],
+        error: 'Access key ID, endpoint, and bucket are required.', checkedAt: nowIso(input),
+      };
+    }
+
+    let host: string;
+    try {
+      host = `${bucket}.${new URL(endpoint).host}`;
+    } catch {
+      return {
+        valid: false, providerKey: 'railway-bucket', detectedCapabilities: [], warnings: [],
+        error: 'Endpoint is not a valid URL.', checkedAt: nowIso(input),
+      };
+    }
+
+    const { sigV4Headers } = await import('./aws-sigv4.ts');
+    const query = { 'list-type': '2', 'max-keys': '1' };
+    const headers = await sigV4Headers({
+      method: 'GET', host, path: '/', region, service: 's3', query,
+      accessKeyId, secretAccessKey: input.secret,
+    });
+
+    const result = await call(
+      fetchImpl,
+      `https://${host}/?list-type=2&max-keys=1`,
+      { method: 'GET', headers },
+    );
+    if (!result.ok) {
+      return {
+        valid: false, providerKey: 'railway-bucket', detectedCapabilities: [], warnings: [],
+        error: result.error ?? `The bucket returned HTTP ${result.status}. Check the access key, endpoint, and bucket name.`,
+        checkedAt: nowIso(input),
+      };
+    }
+
+    return {
+      valid: true,
+      providerKey: 'railway-bucket',
+      detectedCapabilities: ['storage.store', 'storage.read'],
+      warnings: [],
+      checkedAt: nowIso(input),
+    };
+  },
+};
+
 /** AWS SES — GetAccount. Returns sending-enabled, quota and sandbox status. */
 export const sesProbe: CredentialProbe = {
   providerKey: 'ses',
@@ -684,6 +747,7 @@ export const PROBE_REGISTRY: Readonly<Record<string, CredentialProbe>> = {
   openai: openaiProbe,
   gemini: geminiProbe,
   'google-ai': geminiProbe,
+  'railway-bucket': railwayBucketProbe,
 };
 
 export function probeFor(providerKey: string): CredentialProbe | null {
