@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { parseFingerprintKey, WrappingKeyStore } from '@platform-hub/credential-custody';
+import { corsHeadersForRequest } from './cors.ts';
 import { createCustodyVaultFromEnv } from './vault.ts';
 import {
   handleCredentials,
@@ -21,9 +22,20 @@ function loadDeps(): CustodyRouteDeps {
 async function dispatch(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '') || '/';
+  const cors = corsHeadersForRequest(request);
+
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: Object.keys(cors).length > 0 ? 204 : 403,
+      headers: cors,
+    });
+  }
 
   if (request.method === 'GET' && (path === '/health' || path === '/')) {
-    return handleHealth();
+    const health = await handleHealth();
+    const headers = new Headers(health.headers);
+    for (const [key, value] of Object.entries(cors)) headers.set(key, value);
+    return new Response(health.body, { status: health.status, headers });
   }
 
   // Vault is required only for credential paths so /health stays probeable.
@@ -36,21 +48,32 @@ async function dispatch(request: Request): Promise<Response> {
         error: error instanceof Error ? error.message : 'Custody vault not configured.',
         reasonKey: 'CUSTODY_VAULT_REQUIRED',
       }),
-      { status: 503, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } },
+      {
+        status: 503,
+        headers: {
+          'content-type': 'application/json',
+          'cache-control': 'no-store',
+          ...cors,
+        },
+      },
     );
   }
 
+  let response: Response;
   if (request.method === 'GET' && path === '/api/custody/wrapping-key') {
-    return handleWrappingKey(request, deps);
-  }
-  if (request.method === 'POST' && path === '/api/custody/credentials') {
-    return handleCredentials(request, deps);
+    response = await handleWrappingKey(request, deps);
+  } else if (request.method === 'POST' && path === '/api/custody/credentials') {
+    response = await handleCredentials(request, deps);
+  } else {
+    response = new Response(JSON.stringify({ error: 'Not found.' }), {
+      status: 404,
+      headers: { 'content-type': 'application/json' },
+    });
   }
 
-  return new Response(JSON.stringify({ error: 'Not found.' }), {
-    status: 404,
-    headers: { 'content-type': 'application/json' },
-  });
+  const headers = new Headers(response.headers);
+  for (const [key, value] of Object.entries(cors)) headers.set(key, value);
+  return new Response(response.body, { status: response.status, headers });
 }
 
 const bind = process.env.CUSTODY_BIND?.trim() || '127.0.0.1:8787';
