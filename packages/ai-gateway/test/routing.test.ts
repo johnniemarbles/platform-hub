@@ -5,6 +5,7 @@ import {
   RoutedAiGateway,
   RoutedAiGatewayError,
   aiCapabilityKey,
+  governedAiApiTokenProvider,
   type AiInvocationIntent,
   type AiProposal,
   type AiProviderAdapter,
@@ -69,6 +70,60 @@ function proposal(connector: ConnectorDefinition, cost = 4): AiProposal {
   };
 }
 
+for (const scenario of ['missing', 'disabled', 'unhealthy', 'wrong-tenant', 'allow-listed-platform'] as const) {
+  test(`tenant BYOK refuses ${scenario} without invoking any adapter`, async () => {
+    let calls = 0;
+    const shared = { ...platformConnector, fallbackEnabled: true };
+    const own = scenario === 'disabled' ? { ...tenantConnector, enabled: false }
+      : scenario === 'unhealthy' ? { ...tenantConnector, health: 'UNHEALTHY' as const }
+      : { ...tenantConnector, tenantId: 'another-tenant' };
+    const adapter: AiProviderAdapter = { async invoke({ connector }) { calls++; return proposal(connector); } };
+    const gateway = new RoutedAiGateway({
+      connectors: [shared, ...(scenario === 'missing' || scenario === 'allow-listed-platform' ? [] : [own])],
+      adapters: new Map([[shared.connectorKey, adapter], [own.connectorKey, adapter]]),
+      policies: scenario === 'allow-listed-platform'
+        ? [{ tenantId: intent.tenantId, capabilityKey: 'ai.extract', allowedConnectorKeys: [shared.connectorKey] }]
+        : [],
+    });
+    await assert.rejects(() => gateway.invoke(intent), (error: unknown) =>
+      error instanceof RoutedAiGatewayError && error.code === 'AI_CONNECTOR_UNAVAILABLE');
+    assert.equal(calls, 0);
+  });
+}
+
+test('tenant BYOK takes precedence even when platform priority is better and tenant preference is false', async () => {
+  const invoked: string[] = [];
+  const adapter: AiProviderAdapter = { async invoke({ connector }) {
+    invoked.push(connector.connectorKey); return proposal(connector);
+  } };
+  const gateway = new RoutedAiGateway({
+    connectors: [{ ...platformConnector, fallbackEnabled: true }, tenantConnector],
+    adapters: new Map([[platformConnector.connectorKey, adapter], [tenantConnector.connectorKey, adapter]]),
+    policies: [{ tenantId: intent.tenantId, capabilityKey: 'ai.extract', preferTenantOwned: false }],
+  });
+  await gateway.invoke(intent);
+  assert.deepEqual(invoked, [tenantConnector.connectorKey]);
+});
+
+for (const connector of [platformConnector, { ...tenantConnector, tenantId: 'another-tenant' },
+  { ...tenantConnector, enabled: false }, { ...tenantConnector, health: 'UNHEALTHY' as const }]) {
+  test(`credential boundary refuses ${connector.ownership}/${connector.tenantId}/${connector.enabled}/${connector.health} before custody access`, async () => {
+    let accesses = 0;
+    const forbidden = async (): Promise<never> => { accesses++; throw new Error('Custody must not be accessed'); };
+    const token = governedAiApiTokenProvider({
+      connectors: [connector], credentialRepository: { loadCredentialReference: forbidden },
+      leaseService: { issue: forbidden }, secretResolver: { resolve: forbidden },
+      requestedBySubjectId: 'user-1', requestId: () => 'request-1', correlationId: () => 'correlation-1',
+    });
+    await assert.rejects(() => token({
+      connectorKey: connector.connectorKey, tenantId: intent.tenantId,
+      operation: intent.operation, purpose: intent.purpose,
+      idempotencyKey: intent.idempotencyKey, requestedAt: intent.requestedAt,
+    }), (error: unknown) => error instanceof Error && 'code' in error && error.code === 'AI_CONNECTOR_INVALID');
+    assert.equal(accesses, 0);
+  });
+}
+
 test('maps AI operations to provider-registry capabilities', () => {
   assert.equal(aiCapabilityKey('VISION_ANALYZE'), 'ai.vision_analyze');
 });
@@ -119,11 +174,10 @@ test('fails closed when the provider reports cost over the ceiling', async () =>
       return proposal(connector, 11);
     },
   };
-  // fallbackEnabled:true makes the PLATFORM connector visible without a tenant policy
-  const costConnector: ConnectorDefinition = { ...platformConnector, fallbackEnabled: true };
+  const costConnector: ConnectorDefinition = tenantConnector;
   const gateway = new RoutedAiGateway({
     connectors: [costConnector],
-    adapters: new Map([['platform-ai', adapter]]),
+    adapters: new Map([[costConnector.connectorKey, adapter]]),
   });
 
   await assert.rejects(

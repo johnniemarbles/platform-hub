@@ -119,12 +119,11 @@ function validateConnector(
   const capability = `ai.${request.operation.toLowerCase()}`;
   const valid =
     connector.enabled
+    && connector.health !== 'UNHEALTHY'
     && connector.connectorKey === request.connectorKey
     && connector.capabilityKeys.includes(capability)
-    && (
-      connector.ownership === 'PLATFORM'
-      || connector.tenantId === request.tenantId
-    );
+    && connector.ownership === 'TENANT'
+    && connector.tenantId === request.tenantId;
   if (!valid) {
     throw new GovernedAiCredentialError(
       'AI_CONNECTOR_INVALID',

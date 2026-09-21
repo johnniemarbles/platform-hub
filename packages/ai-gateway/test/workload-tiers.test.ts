@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   listWorkloadTier,
+  providerAllowedForWorkload,
   providerSupportsEmbedding,
+  workloadProviderPolicyForTier,
   workloadTierForOperation,
 } from '../src/workload-tiers.ts';
 
@@ -15,6 +17,16 @@ test('GENERATE is Brain tier', () => {
 test('CLASSIFY is Utility tier', () => {
   const rec = workloadTierForOperation('CLASSIFY');
   assert.equal(rec.tier, 'UTILITY');
+});
+
+test('Brain workload policy is versioned and OpenAI only', () => {
+  const policy = workloadProviderPolicyForTier('BRAIN');
+  assert.equal(policy.policyKey, 'ai.workload.brain.openai-only');
+  assert.equal(policy.version, 1);
+  assert.equal(providerAllowedForWorkload('openai', 'BRAIN'), true);
+  assert.equal(providerAllowedForWorkload('google-ai', 'BRAIN'), false);
+  assert.equal(providerAllowedForWorkload('gemini', 'BRAIN'), false);
+  assert.equal(providerAllowedForWorkload('anthropic', 'BRAIN'), false);
 });
 
 test('EMBED excludes Anthropic', () => {

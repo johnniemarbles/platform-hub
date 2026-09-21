@@ -11,6 +11,11 @@ import {
   type AiOperation,
   type AiProposal,
 } from './index.ts';
+import {
+  providerAllowedForWorkload,
+  workloadProviderPolicyForTier,
+  workloadTierForOperation,
+} from './workload-tiers.ts';
 
 export interface AiProviderAdapter {
   invoke(input: {
@@ -26,7 +31,8 @@ export type RoutedAiGatewayErrorCode =
   | 'AI_ADAPTER_NOT_REGISTERED'
   | 'AI_PROPOSAL_INVALID'
   | 'AI_COST_EVIDENCE_REQUIRED'
-  | 'AI_COST_LIMIT_EXCEEDED';
+  | 'AI_COST_LIMIT_EXCEEDED'
+  | 'AI_WORKLOAD_POLICY_DENIED';
 
 export class RoutedAiGatewayError extends Error {
   readonly code: RoutedAiGatewayErrorCode;
@@ -78,6 +84,13 @@ export class RoutedAiGateway implements AiGateway {
         candidate.tenantId === intent.tenantId
         && candidate.capabilityKey === capabilityKey,
     );
+    const workload = workloadTierForOperation(intent.operation);
+    const workloadPolicy = workloadProviderPolicyForTier(workload.tier);
+    const eligibleConnectors = this.#connectors.filter((connector) =>
+      connector.ownership === 'TENANT'
+      && connector.tenantId === intent.tenantId
+      && providerAllowedForWorkload(connector.providerKey, workload.tier));
+
     const route = routeConnector(
       {
         tenantId: intent.tenantId,
@@ -85,7 +98,11 @@ export class RoutedAiGateway implements AiGateway {
         requiredResidencyTags: intent.governance.requiredResidencyTags,
         requiredComplianceTags: intent.governance.requiredComplianceTags,
       },
-      this.#connectors,
+      // AiInvocationIntent is tenant-scoped. Generic provider routing permits
+      // shared infrastructure for other domains, but AI must never use it.
+      // Filter before routing so fallback flags and allow-lists cannot opt out.
+      this.#connectors.filter((connector) =>
+        connector.ownership === 'TENANT' && connector.tenantId === intent.tenantId),
       policy,
     );
     if (route.connector === null) {

@@ -1,10 +1,9 @@
 import type { AiOperation } from './index.ts';
 
 /**
- * Soft recommendation tiers for Brand capability defaults.
+ * Versioned workload policy for AI dispatch.
  * Brain = high-reasoning / agentic / editorial paths.
  * Utility = high-volume classify / extract / embed / background.
- * Brands may override; this is UI guidance only, not hard routing policy.
  */
 export type AiWorkloadTier = 'BRAIN' | 'UTILITY' | 'EMBEDDING' | 'VISION';
 
@@ -13,6 +12,15 @@ export interface WorkloadTierRecommendation {
   readonly tier: AiWorkloadTier;
   readonly preferredProviderKeys: readonly string[];
   readonly preferredModelKeyHints: readonly string[];
+  readonly rationale: string;
+}
+
+export interface AiWorkloadProviderPolicy {
+  readonly policyKey: string;
+  readonly version: number;
+  readonly tier: AiWorkloadTier;
+  readonly allowedProviderKeys: readonly string[];
+  readonly deniedProviderKeys: readonly string[];
   readonly rationale: string;
 }
 
