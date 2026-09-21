@@ -97,8 +97,53 @@ export function workloadTierForOperation(operation: AiOperation): WorkloadTierRe
   return found;
 }
 
-export function listWorkloadTier(): readonly WorkloadTierRecommendation[] {
-  return TABLE;
+export function workloadProviderPolicyForTier(tier: AiWorkloadTier): AiWorkloadProviderPolicy {
+  if (tier === 'BRAIN') {
+    return {
+      policyKey: 'ai.workload.brain.openai-only',
+      version: 1,
+      tier,
+      allowedProviderKeys: ['openai'],
+      deniedProviderKeys: ['gemini', 'google-ai', 'anthropic'],
+      rationale: 'Brain workloads require OpenAI under the current product policy.',
+    };
+  }
+  if (tier === 'EMBEDDING') {
+    return {
+      policyKey: 'ai.workload.embedding.native-only',
+      version: 1,
+      tier,
+      allowedProviderKeys: ['openai', 'gemini', 'google-ai', 'mistral'],
+      deniedProviderKeys: ['anthropic'],
+      rationale: 'Embedding workloads require a provider with native embedding support.',
+    };
+  }
+  if (tier === 'VISION') {
+    return {
+      policyKey: 'ai.workload.vision.approved-providers',
+      version: 1,
+      tier,
+      allowedProviderKeys: ['openai', 'gemini', 'google-ai', 'google-vision', 'aws-textract'],
+      deniedProviderKeys: [],
+      rationale: 'Vision workloads use approved multimodal or OCR adapters.',
+    };
+  }
+  return {
+    policyKey: 'ai.workload.utility.approved-providers',
+    version: 1,
+    tier,
+    allowedProviderKeys: ['openai', 'gemini', 'google-ai', 'anthropic', 'deepseek', 'mistral', 'cohere'],
+    deniedProviderKeys: [],
+    rationale: 'Utility workloads may use approved lower-cost providers.',
+  };
+}
+
+export function providerAllowedForWorkload(providerKey: string, tier: AiWorkloadTier): boolean {
+  const normalized = providerKey.trim().toLowerCase();
+  const policy = workloadProviderPolicyForTier(tier);
+  if (policy.deniedProviderKeys.some((key) => normalized.includes(key))) return false;
+  if (tier === 'UTILITY') return true;
+  return policy.allowedProviderKeys.some((key) => normalized.includes(key));
 }
 
 /** True when the provider is known not to offer native embeddings. */
