@@ -58,6 +58,35 @@ test('retains BYOK provider and work attribution without credentials', () => {
   assert.equal('credential' in validated, false);
 });
 
+test('validates versioned pricing provenance and explicit unknown cost', () => {
+  assert.doesNotThrow(() => validateIntelligenceUsageEvent({
+    ...usage,
+    priceSource: 'matrix',
+    priceMatrixVersion: '2026-09-18',
+    costStatus: 'CALCULATED',
+    attribution: { jobId: 'job-1', missionId: 'mission-1' },
+  }));
+  assert.doesNotThrow(() => validateIntelligenceUsageEvent({
+    ...usage,
+    costMinorUnits: 0,
+    costStatus: 'UNKNOWN_TOKENS',
+    priceSource: 'cost-tables',
+  }));
+});
+
+test('rejects incoherent unknown-cost or matrix provenance states', () => {
+  for (const candidate of [
+    { ...usage, costStatus: 'UNKNOWN_TOKENS' as const, costMinorUnits: 1 },
+    { ...usage, priceSource: 'matrix' as const, priceMatrixVersion: null },
+    { ...usage, priceSource: 'provider' as const, priceMatrixVersion: 'should-not-exist' },
+  ]) {
+    assert.throws(
+      () => validateIntelligenceUsageEvent(candidate),
+      (error: unknown) => error instanceof UsageMeteringError && error.code === 'USAGE_EVENT_INVALID',
+    );
+  }
+});
+
 test('allows usage below the soft limit', () => {
   assert.deepEqual(
     evaluateMonthlyUsageBudget(

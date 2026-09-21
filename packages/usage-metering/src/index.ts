@@ -114,10 +114,11 @@ export function validateIntelligenceUsageEvent(
     || !validInstant(event.recordedAt)
     || !nonBlank(event.correlationId)
     || !validEvidence(event.evidenceRefs)
+    || !validPricingMetadata(event)
   ) {
     throw new UsageMeteringError(
       'USAGE_EVENT_INVALID',
-      'Usage events require governed attribution, non-negative quantity and cost, provider ownership, time, correlation, and evidence.',
+      'Usage events require governed attribution, non-negative quantity and cost, provider ownership, time, correlation, evidence, and coherent pricing provenance.',
     );
   }
   return event;
@@ -241,6 +242,26 @@ function validatePosition(position: UsageBudgetPosition): void {
       'Usage positions require governed scope, YYYY-MM period, currency, and non-negative committed cost.',
     );
   }
+}
+
+function validPricingMetadata(event: IntelligenceUsageEvent): boolean {
+  const costStatus = event.costStatus ?? 'CALCULATED';
+  if (costStatus !== 'CALCULATED' && costStatus !== 'UNKNOWN_TOKENS') return false;
+  if (costStatus === 'UNKNOWN_TOKENS' && event.costMinorUnits !== 0) return false;
+
+  const source = event.priceSource ?? null;
+  if (source !== null && source !== 'provider' && source !== 'matrix' && source !== 'cost-tables') return false;
+  const version = event.priceMatrixVersion ?? null;
+  if (source === 'matrix' && (version === null || !nonBlank(version))) return false;
+  if (source !== 'matrix' && version !== null) return false;
+
+  if (event.attribution !== undefined) {
+    if (event.attribution === null || typeof event.attribution !== 'object' || Array.isArray(event.attribution)) return false;
+    for (const value of Object.values(event.attribution)) {
+      if (value === undefined) return false;
+    }
+  }
+  return true;
 }
 
 function validCurrency(value: string): boolean {
