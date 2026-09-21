@@ -28,6 +28,10 @@ export interface IntelligenceUsageEvent {
   readonly recordedAt: string;
   readonly correlationId: string;
   readonly evidenceRefs: readonly string[];
+  readonly costStatus?: 'CALCULATED' | 'UNKNOWN_TOKENS';
+  readonly priceSource?: 'provider' | 'matrix' | 'cost-tables' | null;
+  readonly priceMatrixVersion?: string | null;
+  readonly attribution?: Readonly<Record<string, unknown>>;
 }
 
 export interface MonthlyUsageBudgetPolicy {
