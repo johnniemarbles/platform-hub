@@ -18,6 +18,7 @@ export const CONTENT_ASSET_PURPOSES = [
   // other file the platform holds, so a picture bound for a brand's public page
   // is scanned, retained and residency-tagged like anything else.
   'SOCIAL_MEDIA',
+  'SOCIAL_MEDIA_DESIGN',
 ] as const;
 export type ContentAssetPurpose = (typeof CONTENT_ASSET_PURPOSES)[number];
 
