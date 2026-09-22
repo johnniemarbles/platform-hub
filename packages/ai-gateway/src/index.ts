@@ -167,10 +167,13 @@ export function validateAiProposal(intent: AiInvocationIntent, proposal: AiPropo
   }
   if (proposal.provenance.costStatus !== undefined
     && proposal.provenance.costStatus !== 'CALCULATED'
-    && proposal.provenance.costStatus !== 'UNKNOWN_TOKENS') {
+    && proposal.provenance.costStatus !== 'UNKNOWN_TOKENS'
+    && proposal.provenance.costStatus !== 'UNKNOWN_PRICE') {
     issues.push({ code: 'AI_PROVENANCE_COST_INVALID', path: 'provenance.costStatus' });
   }
-  if (proposal.provenance.costStatus === 'UNKNOWN_TOKENS' && proposal.provenance.costMinorUnits !== undefined) {
+  if (proposal.provenance.costStatus !== undefined
+    && proposal.provenance.costStatus !== 'CALCULATED'
+    && proposal.provenance.costMinorUnits !== undefined) {
     issues.push({ code: 'AI_PROVENANCE_COST_INVALID', path: 'provenance.costMinorUnits' });
   }
   if (proposal.provenance.priceSource !== undefined
