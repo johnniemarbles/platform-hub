@@ -19,7 +19,7 @@ test('safe failure metadata never includes arbitrary upstream text', () => {
   }));
   assert.deepEqual(provider, {
     code: 'AI_PROVIDER_RATE_LIMITED',
-    reason: 'AI_PROVIDER_RATE_LIMITED: gemini provider request failed.',
+    reason: 'AI_PROVIDER_RATE_LIMITED: gemini provider request failed. http_status=429',
     retryable: true,
   });
 
