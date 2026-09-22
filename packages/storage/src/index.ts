@@ -56,6 +56,11 @@ export interface DurableArtifactWriteInput {
   readonly modelKey?: string;
   readonly capabilityKey: string;
   readonly costMinorUnits: number;
+  /** Economic source retained with the immutable artifact for usage-ledger replay. */
+  readonly costStatus?: 'CALCULATED' | 'UNKNOWN_TOKENS';
+  readonly priceSource?: 'provider' | 'matrix' | 'cost-tables' | null;
+  readonly priceMatrixVersion?: string | null;
+  readonly costCurrency?: string;
   readonly providerCostOwnership: 'BYOK' | 'EXPADIO_MANAGED';
   readonly confidence?: number;
   readonly correlationId?: string;
