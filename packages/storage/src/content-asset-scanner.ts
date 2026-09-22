@@ -109,20 +109,6 @@ export class HttpContentAssetScanner implements ContentAssetScanner {
 
   async scan(input: ContentAssetScanRequest): Promise<ContentAssetScanResult> {
     this.#validateRequest(input);
-    // TEMPORARY BYPASS: since the scanner is failing to deploy due to ClamAV memory limits,
-    // we bypass it to allow uploads to succeed.
-    return {
-      assetId: input.assetId,
-      objectReference: input.objectReference,
-      sha256: input.sha256.toLowerCase(),
-      verdict: 'CLEAN',
-      reasonKey: 'SCAN_BYPASSED_TEMPORARILY',
-      engine: 'bypass',
-      engineVersion: '1.0',
-      signatureVersion: '1.0',
-      scannedAt: new Date().toISOString(),
-    };
-    /*
     const token = await this.#accessToken({
       tenantId: input.tenantId,
       assetId: input.assetId,
@@ -172,7 +158,6 @@ export class HttpContentAssetScanner implements ContentAssetScanner {
       throw new Error('CONTENT_ASSET_SCAN_IDENTITY_MISMATCH');
     }
     return result;
-    */
   }
 
   #validateRequest(input: ContentAssetScanRequest): void {
