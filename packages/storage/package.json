@@ -1,0 +1,14 @@
+{
+  "name": "@platform-hub/storage",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@platform-hub/provider-registry": "workspace:*",
+    "@platform-hub/aws-sigv4": "workspace:*"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.ts"
+  }
+}

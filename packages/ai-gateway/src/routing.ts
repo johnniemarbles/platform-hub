@@ -1,0 +1,166 @@
+import {
+  routeConnector,
+  type ConnectorDefinition,
+  type RoutingPolicy,
+} from '@platform-hub/provider-registry';
+import {
+  validateAiInvocationIntent,
+  validateAiProposal,
+  type AiGateway,
+  type AiInvocationIntent,
+  type AiOperation,
+  type AiProposal,
+} from './index.ts';
+import {
+  providerAllowedForWorkload,
+  workloadProviderPolicyForTier,
+  workloadTierForOperation,
+} from './workload-tiers.ts';
+
+export interface AiProviderAdapter {
+  invoke(input: {
+    readonly intent: AiInvocationIntent;
+    /** Contains at most a managed credential reference, never raw secret data. */
+    readonly connector: ConnectorDefinition;
+  }): Promise<AiProposal>;
+}
+
+export type RoutedAiGatewayErrorCode =
+  | 'AI_INTENT_INVALID'
+  | 'AI_CONNECTOR_UNAVAILABLE'
+  | 'AI_ADAPTER_NOT_REGISTERED'
+  | 'AI_PROPOSAL_INVALID'
+  | 'AI_COST_EVIDENCE_REQUIRED'
+  | 'AI_COST_LIMIT_EXCEEDED'
+  | 'AI_WORKLOAD_POLICY_DENIED';
+
+export class RoutedAiGatewayError extends Error {
+  readonly code: RoutedAiGatewayErrorCode;
+  readonly actualCostMinorUnits: number | undefined;
+
+  constructor(
+    code: RoutedAiGatewayErrorCode,
+    message: string,
+    actualCostMinorUnits?: number,
+  ) {
+    super(message);
+    this.name = 'RoutedAiGatewayError';
+    this.code = code;
+    this.actualCostMinorUnits = actualCostMinorUnits;
+  }
+}
+
+/**
+ * Provider-neutral gateway. Routing applies tenant, residency, compliance,
+ * health, ownership, and policy constraints before any adapter is invoked.
+ */
+export class RoutedAiGateway implements AiGateway {
+  readonly #connectors: readonly ConnectorDefinition[];
+  readonly #adapters: ReadonlyMap<string, AiProviderAdapter>;
+  readonly #policies: readonly RoutingPolicy[];
+
+  constructor(input: {
+    readonly connectors: readonly ConnectorDefinition[];
+    readonly adapters: ReadonlyMap<string, AiProviderAdapter>;
+    readonly policies?: readonly RoutingPolicy[];
+  }) {
+    this.#connectors = input.connectors;
+    this.#adapters = input.adapters;
+    this.#policies = input.policies ?? [];
+  }
+
+  async invoke(intent: AiInvocationIntent): Promise<AiProposal> {
+    const intentValidation = validateAiInvocationIntent(intent);
+    if (!intentValidation.valid) {
+      throw new RoutedAiGatewayError(
+        'AI_INTENT_INVALID',
+        intentValidation.issues.map((issue) => issue.code).join(','),
+      );
+    }
+
+    const capabilityKey = aiCapabilityKey(intent.operation);
+    const policy = this.#policies.find(
+      (candidate) =>
+        candidate.tenantId === intent.tenantId
+        && candidate.capabilityKey === capabilityKey,
+    );
+    const workload = workloadTierForOperation(intent.operation);
+    const workloadPolicy = workloadProviderPolicyForTier(workload.tier);
+    const tenantConnectors = this.#connectors.filter((connector) =>
+      connector.ownership === 'TENANT'
+      && connector.tenantId === intent.tenantId);
+    const eligibleConnectors = tenantConnectors.filter((connector) =>
+      providerAllowedForWorkload(connector.providerKey, workload.tier));
+    if (tenantConnectors.length > 0 && eligibleConnectors.length === 0) {
+      throw new RoutedAiGatewayError(
+        'AI_WORKLOAD_POLICY_DENIED',
+        `No tenant connector is permitted by ${workloadPolicy.policyKey}@${workloadPolicy.version} for ${workload.tier} workloads.`,
+      );
+    }
+
+    const route = routeConnector(
+      {
+        tenantId: intent.tenantId,
+        capabilityKey,
+        requiredResidencyTags: intent.governance.requiredResidencyTags,
+        requiredComplianceTags: intent.governance.requiredComplianceTags,
+      },
+      // AiInvocationIntent is tenant-scoped. Generic provider routing permits
+      // shared infrastructure for other domains, but AI must never use it.
+      // Filter before routing so fallback flags and allow-lists cannot opt out.
+      eligibleConnectors,
+      policy,
+    );
+    if (route.connector === null) {
+      throw new RoutedAiGatewayError(
+        'AI_CONNECTOR_UNAVAILABLE',
+        `No compliant connector is available: ${route.reason}.`,
+      );
+    }
+
+    const adapter = this.#adapters.get(route.connector.connectorKey);
+    if (adapter === undefined) {
+      throw new RoutedAiGatewayError(
+        'AI_ADAPTER_NOT_REGISTERED',
+        `No adapter is registered for ${route.connector.connectorKey}.`,
+      );
+    }
+
+    const proposal = await adapter.invoke({
+      intent,
+      connector: route.connector,
+    });
+    const proposalValidation = validateAiProposal(intent, proposal);
+    if (!proposalValidation.valid) {
+      throw new RoutedAiGatewayError(
+        'AI_PROPOSAL_INVALID',
+        proposalValidation.issues.map((issue) => issue.code).join(','),
+      );
+    }
+
+    const maximumCost = intent.governance.maximumCostMinorUnits;
+    const actualCost = proposal.provenance.costMinorUnits;
+    if (maximumCost !== undefined && actualCost === undefined) {
+      throw new RoutedAiGatewayError(
+        'AI_COST_EVIDENCE_REQUIRED',
+        'Provider cost evidence is required when an invocation has a cost ceiling.',
+      );
+    }
+    if (
+      maximumCost !== undefined
+      && actualCost !== undefined
+      && actualCost > maximumCost
+    ) {
+      throw new RoutedAiGatewayError(
+        'AI_COST_LIMIT_EXCEEDED',
+        `AI cost ${actualCost} exceeds the invocation ceiling ${maximumCost}.`,
+        actualCost,
+      );
+    }
+    return proposal;
+  }
+}
+
+export function aiCapabilityKey(operation: AiOperation): string {
+  return `ai.${operation.toLocaleLowerCase()}`;
+}
