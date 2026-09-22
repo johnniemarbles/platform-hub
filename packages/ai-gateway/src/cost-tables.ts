@@ -17,11 +17,22 @@ const UNKNOWN: AiTokenPrice = {
  */
 const TABLE: Readonly<Record<string, AiTokenPrice>> = {
   // OpenAI
+  'gpt-5.1': { inputPerMillionMinorUnits: 12_500, outputPerMillionMinorUnits: 100_000 },
+  'gpt-5.1-mini': { inputPerMillionMinorUnits: 2_500, outputPerMillionMinorUnits: 20_000 },
+  'gpt-5': { inputPerMillionMinorUnits: 12_500, outputPerMillionMinorUnits: 100_000 },
+  'gpt-5-mini': { inputPerMillionMinorUnits: 2_500, outputPerMillionMinorUnits: 20_000 },
+  'gpt-5-nano': { inputPerMillionMinorUnits: 500, outputPerMillionMinorUnits: 4_000 },
   'gpt-4o-mini': { inputPerMillionMinorUnits: 1_500, outputPerMillionMinorUnits: 6_000 },
   'gpt-4o': { inputPerMillionMinorUnits: 25_000, outputPerMillionMinorUnits: 100_000 },
+  'gpt-4o-audio-preview': { inputPerMillionMinorUnits: 25_000, outputPerMillionMinorUnits: 100_000 },
+  'gpt-4o-realtime-preview': { inputPerMillionMinorUnits: 25_000, outputPerMillionMinorUnits: 100_000 },
   'gpt-4.1': { inputPerMillionMinorUnits: 20_000, outputPerMillionMinorUnits: 80_000 },
   'gpt-4.1-mini': { inputPerMillionMinorUnits: 4_000, outputPerMillionMinorUnits: 16_000 },
+  'gpt-4.1-nano': { inputPerMillionMinorUnits: 1_000, outputPerMillionMinorUnits: 4_000 },
+  'o3': { inputPerMillionMinorUnits: 20_000, outputPerMillionMinorUnits: 80_000 },
+  'o3-mini': { inputPerMillionMinorUnits: 11_000, outputPerMillionMinorUnits: 44_000 },
   'o4-mini': { inputPerMillionMinorUnits: 11_000, outputPerMillionMinorUnits: 44_000 },
+  'o4-mini-deep-research': { inputPerMillionMinorUnits: 11_000, outputPerMillionMinorUnits: 44_000 },
   'text-embedding-3-small': { inputPerMillionMinorUnits: 200, outputPerMillionMinorUnits: 0 },
   'text-embedding-3-large': { inputPerMillionMinorUnits: 1_300, outputPerMillionMinorUnits: 0 },
 
