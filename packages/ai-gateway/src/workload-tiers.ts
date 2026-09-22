@@ -152,3 +152,4 @@ export function providerSupportsEmbedding(providerKey: string): boolean {
   if (key.includes('anthropic')) return false;
   return true;
 }
+export function listWorkloadTier(): readonly WorkloadTierRecommendation[] { return TABLE; }

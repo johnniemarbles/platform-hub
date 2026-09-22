@@ -86,10 +86,17 @@ export class RoutedAiGateway implements AiGateway {
     );
     const workload = workloadTierForOperation(intent.operation);
     const workloadPolicy = workloadProviderPolicyForTier(workload.tier);
-    const eligibleConnectors = this.#connectors.filter((connector) =>
+    const tenantConnectors = this.#connectors.filter((connector) =>
       connector.ownership === 'TENANT'
-      && connector.tenantId === intent.tenantId
-      && providerAllowedForWorkload(connector.providerKey, workload.tier));
+      && connector.tenantId === intent.tenantId);
+    const eligibleConnectors = tenantConnectors.filter((connector) =>
+      providerAllowedForWorkload(connector.providerKey, workload.tier));
+    if (tenantConnectors.length > 0 && eligibleConnectors.length === 0) {
+      throw new RoutedAiGatewayError(
+        'AI_WORKLOAD_POLICY_DENIED',
+        `No tenant connector is permitted by ${workloadPolicy.policyKey}@${workloadPolicy.version} for ${workload.tier} workloads.`,
+      );
+    }
 
     const route = routeConnector(
       {
@@ -101,8 +108,7 @@ export class RoutedAiGateway implements AiGateway {
       // AiInvocationIntent is tenant-scoped. Generic provider routing permits
       // shared infrastructure for other domains, but AI must never use it.
       // Filter before routing so fallback flags and allow-lists cannot opt out.
-      this.#connectors.filter((connector) =>
-        connector.ownership === 'TENANT' && connector.tenantId === intent.tenantId),
+      eligibleConnectors,
       policy,
     );
     if (route.connector === null) {

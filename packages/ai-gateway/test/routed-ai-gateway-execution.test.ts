@@ -46,7 +46,7 @@ test("RoutedAiGateway routes US HIPAA intent through GeminiAiAdapter", async () 
     fetchImpl: async () =>
       new Response(
         JSON.stringify({
-          candidates: [{ content: { parts: [{ text: "Gemini response" }] } }],
+          candidates: [{ content: { parts: [{ text: "{\"result\":\"Gemini response\"}" }] } }],
           usageMetadata: { totalTokenCount: 100 },
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
@@ -76,7 +76,7 @@ test("RoutedAiGateway routes US HIPAA intent through GeminiAiAdapter", async () 
   const intent: AiInvocationIntent = {
     invocationId: "inv_us_01",
     tenantId: "tenant_us_001",
-    operation: "GENERATE",
+    operation: "EXTRACT",
     purpose: "Patient advice",
     inputReference: "Symptoms query",
     promptConfiguration: { key: "prompt.advice", version: 1 },
@@ -102,7 +102,7 @@ test("RoutedAiGateway routes EU GDPR intent to tenant-owned OpenAI adapter", asy
     fetchImpl: async () =>
       new Response(
         JSON.stringify({
-          candidates: [{ content: { parts: [{ text: "Gemini response" }] } }],
+          candidates: [{ content: { parts: [{ text: "{\"result\":\"Gemini response\"}" }] } }],
         }),
         { status: 200 }
       ),
@@ -185,7 +185,7 @@ test('RoutedAiGateway requires cost evidence when a ceiling is configured', asyn
   });
 
   await assert.rejects(() => gateway.invoke({
-    invocationId: 'cost-evidence-1', tenantId: 'tenant_us_001', operation: 'GENERATE',
+    invocationId: 'cost-evidence-1', tenantId: 'tenant_us_001', operation: 'EXTRACT',
     purpose: 'Test governed cost evidence', inputReference: 'artifact://input',
     promptConfiguration: { key: 'test', version: 1 },
     governance: { requiredResidencyTags: ['US'], requiredComplianceTags: ['HIPAA'], maximumCostMinorUnits: 10 },

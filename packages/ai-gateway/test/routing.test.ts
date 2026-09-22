@@ -50,10 +50,14 @@ const tenantConnector: ConnectorDefinition = {
   priority: 5,
 };
 
-function proposal(connector: ConnectorDefinition, cost = 4): AiProposal {
+function proposal(
+  connector: ConnectorDefinition,
+  cost = 4,
+  invocation: AiInvocationIntent = intent,
+): AiProposal {
   return {
-    invocationId: intent.invocationId,
-    tenantId: intent.tenantId,
+    invocationId: invocation.invocationId,
+    tenantId: invocation.tenantId,
     status: 'PROPOSAL',
     outputReference: 'object://tenant-1/output-1',
     confidence: 0.9,
@@ -61,9 +65,9 @@ function proposal(connector: ConnectorDefinition, cost = 4): AiProposal {
       connectorKey: connector.connectorKey,
       providerKey: connector.providerKey,
       modelKey: 'model-1',
-      promptConfigurationKey: intent.promptConfiguration.key,
-      promptConfigurationVersion: intent.promptConfiguration.version,
-      sourceReferences: [intent.inputReference],
+      promptConfigurationKey: invocation.promptConfiguration.key,
+      promptConfigurationVersion: invocation.promptConfiguration.version,
+      sourceReferences: [invocation.inputReference],
       processedAt: '2026-08-25T15:00:01.000Z',
       costMinorUnits: cost,
     },
@@ -103,6 +107,72 @@ test('tenant BYOK takes precedence even when platform priority is better and ten
   });
   await gateway.invoke(intent);
   assert.deepEqual(invoked, [tenantConnector.connectorKey]);
+});
+
+test('Brain workload rejects non-OpenAI tenant connectors before adapter invocation', async () => {
+  let calls = 0;
+  const brainIntent: AiInvocationIntent = {
+    ...intent,
+    invocationId: 'invocation-brain-denied',
+    operation: 'GENERATE',
+    purpose: 'Plan a governed mission.',
+    idempotencyKey: 'brain:denied',
+  };
+  const geminiConnector: ConnectorDefinition = {
+    ...tenantConnector,
+    connectorKey: 'tenant-gemini',
+    providerKey: 'google-ai',
+    capabilityKeys: ['ai.generate'],
+  };
+  const adapter: AiProviderAdapter = {
+    async invoke({ connector }) {
+      calls++;
+      return proposal(connector, 4, brainIntent);
+    },
+  };
+  const gateway = new RoutedAiGateway({
+    connectors: [geminiConnector],
+    adapters: new Map([[geminiConnector.connectorKey, adapter]]),
+  });
+
+  await assert.rejects(
+    () => gateway.invoke(brainIntent),
+    (error: unknown) =>
+      error instanceof RoutedAiGatewayError
+      && error.code === 'AI_WORKLOAD_POLICY_DENIED',
+  );
+  assert.equal(calls, 0);
+});
+
+test('Brain workload routes through an allowed tenant OpenAI connector', async () => {
+  const invoked: string[] = [];
+  const brainIntent: AiInvocationIntent = {
+    ...intent,
+    invocationId: 'invocation-brain-allowed',
+    operation: 'GENERATE',
+    purpose: 'Plan a governed mission.',
+    idempotencyKey: 'brain:allowed',
+  };
+  const openAiConnector: ConnectorDefinition = {
+    ...tenantConnector,
+    connectorKey: 'tenant-openai',
+    providerKey: 'openai',
+    capabilityKeys: ['ai.generate'],
+  };
+  const adapter: AiProviderAdapter = {
+    async invoke({ connector }) {
+      invoked.push(connector.connectorKey);
+      return proposal(connector, 4, brainIntent);
+    },
+  };
+  const gateway = new RoutedAiGateway({
+    connectors: [openAiConnector],
+    adapters: new Map([[openAiConnector.connectorKey, adapter]]),
+  });
+
+  const result = await gateway.invoke(brainIntent);
+  assert.equal(result.provenance.connectorKey, openAiConnector.connectorKey);
+  assert.deepEqual(invoked, [openAiConnector.connectorKey]);
 });
 
 for (const connector of [platformConnector, { ...tenantConnector, tenantId: 'another-tenant' },
