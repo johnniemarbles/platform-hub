@@ -97,7 +97,7 @@ test('a quota enforcer that allows the request, or reports no quota configured, 
       provenance: { connectorKey: 'connector', providerKey: 'openai', modelKey: 'model',
         promptConfigurationKey: value.promptConfiguration.key,
         promptConfigurationVersion: value.promptConfiguration.version,
-        sourceReferences: [value.inputReference], processedAt: '2026-09-13T16:00:01.000Z' },
+        sourceReferences: [value.inputReference], processedAt: '2026-09-13T16:00:01.000Z', costMinorUnits: 2 },
     }; } };
     const recorded = new RecordedAiGateway({ gateway, repository, actorSubjectId: 'user-1', quotaEnforcer: { check } });
     await recorded.invoke(intent);

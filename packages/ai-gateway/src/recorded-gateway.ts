@@ -11,6 +11,10 @@ export interface AiQuotaCheckResult {
   readonly period: 'DAILY' | 'MONTHLY';
   readonly limitCostMinorUnits: number;
   readonly currentSpendMinorUnits: number;
+  readonly requestedCostMinorUnits?: number;
+  readonly reservedCostMinorUnits?: number;
+  readonly projectedSpendMinorUnits?: number;
+  readonly reasonKey?: 'AI_QUOTA_EXCEEDED' | 'AI_COST_CEILING_REQUIRED';
 }
 
 /**
@@ -24,16 +28,26 @@ export interface AiQuotaEnforcer {
   check(input: {
     readonly tenantId: string;
     readonly operation: AiInvocationIntent['operation'];
+    readonly jobId: string;
+    readonly maximumCostMinorUnits?: number;
   }): Promise<AiQuotaCheckResult | null>;
+  reconcile?(input: {
+    readonly tenantId: string;
+    readonly jobId: string;
+    readonly actualCostMinorUnits: number;
+  }): Promise<void>;
 }
 
 export class AiQuotaExceededError extends Error {
-  readonly code = 'AI_QUOTA_EXCEEDED' as const;
+  readonly code: 'AI_QUOTA_EXCEEDED' | 'AI_COST_CEILING_REQUIRED';
   readonly result: AiQuotaCheckResult;
 
   constructor(result: AiQuotaCheckResult) {
-    super(`AI_QUOTA_EXCEEDED: tenant AI spend already at or over its ${result.period.toLowerCase()} limit.`);
+    super(result.reasonKey === 'AI_COST_CEILING_REQUIRED'
+      ? 'AI_COST_CEILING_REQUIRED: a maximum cost is required while a tenant AI quota is active.'
+      : `AI_QUOTA_EXCEEDED: request would exceed the tenant's ${result.period.toLowerCase()} AI spend limit.`);
     this.name = 'AiQuotaExceededError';
+    this.code = result.reasonKey ?? 'AI_QUOTA_EXCEEDED';
     this.result = result;
   }
 }
@@ -93,7 +107,14 @@ export class RecordedAiGateway implements AiGateway {
 
     await append(this.#repository, eventBase(registration, 1, 'STARTED', this.#now()));
 
-    const quota = await this.#quotaEnforcer?.check({ tenantId: intent.tenantId, operation: intent.operation });
+    const quota = await this.#quotaEnforcer?.check({
+      tenantId: intent.tenantId,
+      operation: intent.operation,
+      jobId,
+      ...(intent.governance.maximumCostMinorUnits === undefined
+        ? {}
+        : { maximumCostMinorUnits: intent.governance.maximumCostMinorUnits }),
+    });
     if (quota !== undefined && quota !== null && !quota.allowed) {
       const quotaError = new AiQuotaExceededError(quota);
       await append(this.#repository, {
@@ -106,6 +127,16 @@ export class RecordedAiGateway implements AiGateway {
 
     try {
       const proposal = await this.#gateway.invoke(intent);
+      if (quota !== undefined && quota !== null && proposal.provenance.costMinorUnits === undefined) {
+        throw new Error('AI_COST_EVIDENCE_REQUIRED');
+      }
+      if (quota !== undefined && quota !== null && proposal.provenance.costMinorUnits !== undefined) {
+        await this.#quotaEnforcer?.reconcile?.({
+          tenantId: intent.tenantId,
+          jobId,
+          actualCostMinorUnits: proposal.provenance.costMinorUnits,
+        });
+      }
       await append(this.#repository, {
         ...eventBase(registration, 2, 'SUCCEEDED', this.#now()),
         type: 'SUCCEEDED', outputReference: proposal.outputReference,
@@ -115,6 +146,14 @@ export class RecordedAiGateway implements AiGateway {
       return proposal;
     } catch (error) {
       console.error('[RecordedAiGateway] Original error from gateway invoke:', error);
+      const actualCost = actualCostFromFailure(error);
+      if (quota !== undefined && quota !== null && actualCost !== undefined) {
+        await this.#quotaEnforcer?.reconcile?.({
+          tenantId: intent.tenantId,
+          jobId,
+          actualCostMinorUnits: actualCost,
+        });
+      }
       const failure = safeAiFailure(error);
       await append(this.#repository, {
         ...eventBase(registration, 2, 'FAILED', this.#now()),
@@ -124,6 +163,14 @@ export class RecordedAiGateway implements AiGateway {
       throw new Error(failure.reason);
     }
   }
+}
+
+function actualCostFromFailure(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object' || !('actualCostMinorUnits' in error)) return undefined;
+  const value = (error as { actualCostMinorUnits?: unknown }).actualCostMinorUnits;
+  return Number.isSafeInteger(value) && typeof value === 'number' && value >= 0
+    ? value
+    : undefined;
 }
 
 function eventBase(
