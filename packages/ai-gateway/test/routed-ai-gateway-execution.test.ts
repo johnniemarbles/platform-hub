@@ -47,7 +47,7 @@ test("RoutedAiGateway routes US HIPAA intent through GeminiAiAdapter", async () 
       new Response(
         JSON.stringify({
           candidates: [{ content: { parts: [{ text: "{\"result\":\"Gemini response\"}" }] } }],
-          usageMetadata: { totalTokenCount: 100 },
+          usageMetadata: { totalTokenCount: 100, promptTokenCount: 20, candidatesTokenCount: 30 },
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       ),
@@ -59,7 +59,7 @@ test("RoutedAiGateway routes US HIPAA intent through GeminiAiAdapter", async () 
       new Response(
         JSON.stringify({
           choices: [{ message: { content: '{"result":"OpenAI response"}' } }],
-          usage: { total_tokens: 100 },
+          usage: { total_tokens: 100, prompt_tokens: 40, completion_tokens: 60 },
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       ),
@@ -103,6 +103,7 @@ test("RoutedAiGateway routes EU GDPR intent to tenant-owned OpenAI adapter", asy
       new Response(
         JSON.stringify({
           candidates: [{ content: { parts: [{ text: "{\"result\":\"Gemini response\"}" }] } }],
+          usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 15 },
         }),
         { status: 200 }
       ),
@@ -114,7 +115,7 @@ test("RoutedAiGateway routes EU GDPR intent to tenant-owned OpenAI adapter", asy
       new Response(
         JSON.stringify({
           choices: [{ message: { content: '{"result":"OpenAI response"}' } }],
-          usage: { total_tokens: 50 },
+          usage: { total_tokens: 50, prompt_tokens: 20, completion_tokens: 30 },
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       ),
