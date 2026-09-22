@@ -1,0 +1,48 @@
+{
+  "name": "@platform-hub/communication",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./persisted-preflight": "./src/persisted-preflight.ts",
+    "./template-renderer": "./src/template-renderer.ts",
+    "./template-resolve-render": "./src/template-resolve-render.ts",
+    "./dispatch": "./src/dispatch.ts",
+    "./dispatch-routing": "./src/dispatch-routing.ts",
+    "./provider-adapter": "./src/provider-adapter.ts",
+    "./provider-adapter-registry": "./src/provider-adapter-registry.ts",
+    "./provider-invocation": "./src/provider-invocation.ts",
+    "./resend-email-adapter": "./src/resend-email-adapter.ts",
+    "./governed-resend-binding": "./src/governed-resend-binding.ts",
+    "./linkedin-social-text-adapter": "./src/linkedin-social-text-adapter.ts",
+    "./governed-linkedin-binding": "./src/governed-linkedin-binding.ts",
+    "./governed-action-adapter": "./src/governed-action-adapter.ts",
+    "./delivery-state": "./src/delivery-state.ts",
+    "./delivery-repository": "./src/delivery-repository.ts",
+    "./provider-webhook": "./src/provider-webhook.ts",
+    "./webhook-ingestion": "./src/webhook-ingestion.ts",
+    "./resend-webhook-normalizer": "./src/resend-webhook-normalizer.ts",
+    "./twilio-webhook-normalizer": "./src/twilio-webhook-normalizer.ts",
+    "./retry-policy": "./src/retry-policy.ts",
+    "./send-attempt": "./src/send-attempt.ts",
+    "./voice-transport": "./src/voice-transport.ts",
+    "./voice-transport-repository": "./src/voice-transport-repository.ts",
+    "./voice-webhook": "./src/voice-webhook.ts",
+    "./voice-webhook-ingestion": "./src/voice-webhook-ingestion.ts",
+    "./sender": "./src/sender.ts",
+    "./provider-send-request": "./src/provider-send-request.ts",
+    "./twilio-sms-whatsapp-adapter": "./src/twilio-sms-whatsapp-adapter.ts",
+    "./twilio-voice-adapter": "./src/twilio-voice-adapter.ts",
+    "./governed-twilio-binding": "./src/governed-twilio-binding.ts"
+  },
+  "dependencies": {
+    "@platform-hub/credential-custody": "workspace:*",
+    "@expadio/governed-actions": "workspace:*",
+    "@expadio/observability": "workspace:*",
+    "@platform-hub/provider-registry": "workspace:*"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.ts"
+  }
+}
