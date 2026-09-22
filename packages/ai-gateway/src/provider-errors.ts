@@ -81,7 +81,7 @@ export function classifyAiProviderStatus(
     return new AiProviderError({ code: 'AI_PROVIDER_TIMEOUT', providerKey, httpStatus, retryable: true });
   }
   if (httpStatus === 429) {
-    return new AiProviderError({ code: 'AI_PROVIDER_RATE_LIMITED', providerKey, httpStatus, retryable: true, rateLimit });
+    return new AiProviderError({ code: 'AI_PROVIDER_RATE_LIMITED', providerKey, httpStatus, retryable: true, ...(rateLimit ? { rateLimit } : {}) });
   }
   if (httpStatus >= 500) {
     return new AiProviderError({ code: 'AI_PROVIDER_TEMPORARY_FAILURE', providerKey, httpStatus, retryable: true });
