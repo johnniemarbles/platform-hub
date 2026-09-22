@@ -16,8 +16,9 @@ export interface AiProposalUsageSource {
     readonly modelKey: string;
     readonly processedAt: string;
     readonly costMinorUnits?: number;
-    readonly costStatus?: 'CALCULATED' | 'UNKNOWN_TOKENS';
+    readonly costStatus?: 'CALCULATED' | 'UNKNOWN_TOKENS' | 'UNKNOWN_PRICE';
     readonly priceSource?: 'provider' | 'matrix' | 'cost-tables' | null;
+    readonly priceMatrixVersion?: string | null;
     readonly inputTokens?: number;
     readonly outputTokens?: number;
     readonly sourceReferences: readonly string[];
@@ -65,7 +66,6 @@ export function composeAiProposalUsageEvents(
   // Source references may contain full prompt text in provider adapters. Keep
   // raw prompt/context out of the usage ledger's evidence_refs column.
   const evidenceRefs = [`ai-proposal://${proposal.invocationId}`];
-  const cost = proposal.provenance.costMinorUnits ?? 0;
   const inputTokens = proposal.provenance.inputTokens ?? 0;
   const outputTokens = proposal.provenance.outputTokens ?? 0;
   const completeTokenEvidence = proposal.provenance.inputTokens !== undefined
@@ -74,6 +74,7 @@ export function composeAiProposalUsageEvents(
     ?? (proposal.provenance.costMinorUnits !== undefined || completeTokenEvidence
       ? 'CALCULATED'
       : 'UNKNOWN_TOKENS');
+  const cost = costStatus === 'CALCULATED' ? (proposal.provenance.costMinorUnits ?? 0) : 0;
   const priceSource = proposal.provenance.priceSource
     ?? (proposal.provenance.costMinorUnits === undefined ? null : 'cost-tables');
   const cap = capabilityKey(proposal.operation);
@@ -94,6 +95,7 @@ export function composeAiProposalUsageEvents(
     evidenceRefs,
     costStatus,
     priceSource,
+    priceMatrixVersion: proposal.provenance.priceMatrixVersion ?? null,
   } as const;
 
   const events: IntelligenceUsageEvent[] = [

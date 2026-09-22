@@ -28,7 +28,7 @@ export interface IntelligenceUsageEvent {
   readonly recordedAt: string;
   readonly correlationId: string;
   readonly evidenceRefs: readonly string[];
-  readonly costStatus?: 'CALCULATED' | 'UNKNOWN_TOKENS';
+  readonly costStatus?: 'CALCULATED' | 'UNKNOWN_TOKENS' | 'UNKNOWN_PRICE';
   readonly priceSource?: 'provider' | 'matrix' | 'cost-tables' | null;
   readonly priceMatrixVersion?: string | null;
   readonly attribution?: Readonly<Record<string, unknown>>;
@@ -246,8 +246,8 @@ function validatePosition(position: UsageBudgetPosition): void {
 
 function validPricingMetadata(event: IntelligenceUsageEvent): boolean {
   const costStatus = event.costStatus ?? 'CALCULATED';
-  if (costStatus !== 'CALCULATED' && costStatus !== 'UNKNOWN_TOKENS') return false;
-  if (costStatus === 'UNKNOWN_TOKENS' && event.costMinorUnits !== 0) return false;
+  if (costStatus !== 'CALCULATED' && costStatus !== 'UNKNOWN_TOKENS' && costStatus !== 'UNKNOWN_PRICE') return false;
+  if (costStatus !== 'CALCULATED' && event.costMinorUnits !== 0) return false;
 
   const source = event.priceSource ?? null;
   if (source !== null && source !== 'provider' && source !== 'matrix' && source !== 'cost-tables') return false;

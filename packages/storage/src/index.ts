@@ -57,7 +57,7 @@ export interface DurableArtifactWriteInput {
   readonly capabilityKey: string;
   readonly costMinorUnits: number;
   /** Economic source retained with the immutable artifact for usage-ledger replay. */
-  readonly costStatus?: 'CALCULATED' | 'UNKNOWN_TOKENS';
+  readonly costStatus?: 'CALCULATED' | 'UNKNOWN_TOKENS' | 'UNKNOWN_PRICE';
   readonly priceSource?: 'provider' | 'matrix' | 'cost-tables' | null;
   readonly priceMatrixVersion?: string | null;
   readonly costCurrency?: string;

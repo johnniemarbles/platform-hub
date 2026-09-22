@@ -57,7 +57,7 @@ export interface AiProvenance {
   readonly processedAt: string;
   readonly region?: string;
   readonly costMinorUnits?: number;
-  readonly costStatus?: 'CALCULATED' | 'UNKNOWN_TOKENS';
+  readonly costStatus?: 'CALCULATED' | 'UNKNOWN_TOKENS' | 'UNKNOWN_PRICE';
   readonly priceSource?: 'provider' | 'matrix' | 'cost-tables' | null;
   /** Optional provider-reported prompt tokens for usage ledger. */
   readonly inputTokens?: number;
