@@ -58,6 +58,7 @@ export interface RecordedAiGatewayOptions {
   readonly actorSubjectId: string;
   readonly now?: () => string;
   readonly quotaEnforcer?: AiQuotaEnforcer;
+  readonly recordUsage?: (intent: AiInvocationIntent, proposal: AiProposal) => Promise<void>;
 }
 
 /**
@@ -72,6 +73,7 @@ export class RecordedAiGateway implements AiGateway {
   readonly #actorSubjectId: string;
   readonly #now: () => string;
   readonly #quotaEnforcer: AiQuotaEnforcer | undefined;
+  readonly #recordUsage: RecordedAiGatewayOptions['recordUsage'];
 
   constructor(options: RecordedAiGatewayOptions) {
     if (options.actorSubjectId.trim() === '') throw new Error('AI_RECORDED_GATEWAY_ACTOR_REQUIRED');
@@ -80,6 +82,7 @@ export class RecordedAiGateway implements AiGateway {
     this.#actorSubjectId = options.actorSubjectId;
     this.#now = options.now ?? (() => new Date().toISOString());
     this.#quotaEnforcer = options.quotaEnforcer;
+    this.#recordUsage = options.recordUsage;
   }
 
   async invoke(intent: AiInvocationIntent): Promise<AiProposal> {
@@ -137,6 +140,7 @@ export class RecordedAiGateway implements AiGateway {
           actualCostMinorUnits: proposal.provenance.costMinorUnits,
         });
       }
+      await this.#recordUsage?.(intent, proposal);
       await append(this.#repository, {
         ...eventBase(registration, 2, 'SUCCEEDED', this.#now()),
         type: 'SUCCEEDED', outputReference: proposal.outputReference,

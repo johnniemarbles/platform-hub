@@ -138,13 +138,12 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
     const choice = data.choices?.[0];
     const generatedText = choice?.message?.content ?? "";
     enforceStructuredAiOutput(intent.operation, generatedText);
-    const inputTokens = data.usage?.prompt_tokens ?? 0;
-    const outputTokens = data.usage?.completion_tokens ?? 0;
-    const costMinorUnits = estimateAiCostMinorUnits({
-      modelKey,
-      inputTokens,
-      outputTokens,
-    });
+    const inputTokens = data.usage?.prompt_tokens;
+    const outputTokens = data.usage?.completion_tokens;
+    const completeTokenEvidence = inputTokens !== undefined && outputTokens !== undefined;
+    const costMinorUnits = completeTokenEvidence
+      ? estimateAiCostMinorUnits({ modelKey, inputTokens, outputTokens })
+      : undefined;
 
     const provenance: AiProvenance = {
       connectorKey: connector.connectorKey,
@@ -157,9 +156,11 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
       sourceReferences: [intent.inputReference, ...(intent.contextReference ? [intent.contextReference] : [])],
       processedAt,
       ...(connector.region !== undefined ? { region: connector.region } : {}),
-      costMinorUnits,
-      inputTokens,
-      outputTokens,
+      ...(costMinorUnits === undefined ? {} : { costMinorUnits }),
+      costStatus: completeTokenEvidence ? 'CALCULATED' : 'UNKNOWN_TOKENS',
+      priceSource: 'cost-tables',
+      ...(inputTokens === undefined ? {} : { inputTokens }),
+      ...(outputTokens === undefined ? {} : { outputTokens }),
     };
 
     return {
@@ -209,12 +210,10 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
     if (!Array.isArray(embedding) || embedding.length === 0) {
       throw new Error("AI_EMBEDDING_OUTPUT_INVALID");
     }
-    const inputTokens = data.usage?.prompt_tokens ?? 0;
-    const costMinorUnits = estimateAiCostMinorUnits({
-      modelKey,
-      inputTokens,
-      outputTokens: 0,
-    });
+    const inputTokens = data.usage?.prompt_tokens;
+    const costMinorUnits = inputTokens === undefined
+      ? undefined
+      : estimateAiCostMinorUnits({ modelKey, inputTokens, outputTokens: 0 });
 
     const provenance: AiProvenance = {
       connectorKey: connector.connectorKey,
@@ -227,8 +226,10 @@ export class OpenAiAiAdapter implements AiProviderAdapter {
       sourceReferences: [intent.inputReference],
       processedAt,
       ...(connector.region !== undefined ? { region: connector.region } : {}),
-      costMinorUnits,
-      inputTokens,
+      ...(costMinorUnits === undefined ? {} : { costMinorUnits }),
+      costStatus: inputTokens === undefined ? 'UNKNOWN_TOKENS' : 'CALCULATED',
+      priceSource: 'cost-tables',
+      ...(inputTokens === undefined ? {} : { inputTokens }),
       outputTokens: 0,
     };
 

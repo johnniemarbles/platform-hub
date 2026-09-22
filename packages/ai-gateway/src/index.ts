@@ -57,6 +57,8 @@ export interface AiProvenance {
   readonly processedAt: string;
   readonly region?: string;
   readonly costMinorUnits?: number;
+  readonly costStatus?: 'CALCULATED' | 'UNKNOWN_TOKENS';
+  readonly priceSource?: 'provider' | 'matrix' | 'cost-tables' | null;
   /** Optional provider-reported prompt tokens for usage ledger. */
   readonly inputTokens?: number;
   /** Optional provider-reported completion tokens for usage ledger. */
@@ -162,6 +164,21 @@ export function validateAiProposal(intent: AiInvocationIntent, proposal: AiPropo
     && (!Number.isInteger(proposal.provenance.costMinorUnits) || proposal.provenance.costMinorUnits < 0)
   ) {
     issues.push({ code: 'AI_PROVENANCE_COST_INVALID', path: 'provenance.costMinorUnits' });
+  }
+  if (proposal.provenance.costStatus !== undefined
+    && proposal.provenance.costStatus !== 'CALCULATED'
+    && proposal.provenance.costStatus !== 'UNKNOWN_TOKENS') {
+    issues.push({ code: 'AI_PROVENANCE_COST_INVALID', path: 'provenance.costStatus' });
+  }
+  if (proposal.provenance.costStatus === 'UNKNOWN_TOKENS' && proposal.provenance.costMinorUnits !== undefined) {
+    issues.push({ code: 'AI_PROVENANCE_COST_INVALID', path: 'provenance.costMinorUnits' });
+  }
+  if (proposal.provenance.priceSource !== undefined
+    && proposal.provenance.priceSource !== null
+    && proposal.provenance.priceSource !== 'provider'
+    && proposal.provenance.priceSource !== 'matrix'
+    && proposal.provenance.priceSource !== 'cost-tables') {
+    issues.push({ code: 'AI_PROVENANCE_COST_INVALID', path: 'provenance.priceSource' });
   }
   if (
     proposal.provenance.inputTokens !== undefined

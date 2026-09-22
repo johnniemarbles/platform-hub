@@ -131,13 +131,12 @@ export class AnthropicAiAdapter implements AiProviderAdapter {
       .map((part) => part.text ?? "")
       .join("");
     enforceStructuredAiOutput(intent.operation, generatedText);
-    const inputTokens = data.usage?.input_tokens ?? 0;
-    const outputTokens = data.usage?.output_tokens ?? 0;
-    const costMinorUnits = estimateAiCostMinorUnits({
-      modelKey,
-      inputTokens,
-      outputTokens,
-    });
+    const inputTokens = data.usage?.input_tokens;
+    const outputTokens = data.usage?.output_tokens;
+    const completeTokenEvidence = inputTokens !== undefined && outputTokens !== undefined;
+    const costMinorUnits = completeTokenEvidence
+      ? estimateAiCostMinorUnits({ modelKey, inputTokens, outputTokens })
+      : undefined;
 
     const provenance: AiProvenance = {
       connectorKey: connector.connectorKey,
@@ -153,9 +152,11 @@ export class AnthropicAiAdapter implements AiProviderAdapter {
       ],
       processedAt,
       ...(connector.region !== undefined ? { region: connector.region } : {}),
-      costMinorUnits,
-      inputTokens,
-      outputTokens,
+      ...(costMinorUnits === undefined ? {} : { costMinorUnits }),
+      costStatus: completeTokenEvidence ? 'CALCULATED' : 'UNKNOWN_TOKENS',
+      priceSource: 'cost-tables',
+      ...(inputTokens === undefined ? {} : { inputTokens }),
+      ...(outputTokens === undefined ? {} : { outputTokens }),
     };
 
     return {

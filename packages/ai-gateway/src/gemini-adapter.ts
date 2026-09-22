@@ -154,13 +154,12 @@ export class GeminiAiAdapter implements AiProviderAdapter {
     const firstCandidate = data.candidates?.[0];
     const generatedText = firstCandidate?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
     enforceStructuredAiOutput(intent.operation, generatedText);
-    const inputTokens = data.usageMetadata?.promptTokenCount ?? 0;
-    const outputTokens = data.usageMetadata?.candidatesTokenCount ?? 0;
-    const costMinorUnits = estimateAiCostMinorUnits({
-      modelKey,
-      inputTokens,
-      outputTokens,
-    });
+    const inputTokens = data.usageMetadata?.promptTokenCount;
+    const outputTokens = data.usageMetadata?.candidatesTokenCount;
+    const completeTokenEvidence = inputTokens !== undefined && outputTokens !== undefined;
+    const costMinorUnits = completeTokenEvidence
+      ? estimateAiCostMinorUnits({ modelKey, inputTokens, outputTokens })
+      : undefined;
 
     const provenance: AiProvenance = {
       connectorKey: connector.connectorKey,
@@ -173,9 +172,11 @@ export class GeminiAiAdapter implements AiProviderAdapter {
       sourceReferences: [intent.inputReference, ...(intent.contextReference ? [intent.contextReference] : [])],
       processedAt,
       ...(connector.region !== undefined ? { region: connector.region } : {}),
-      costMinorUnits,
-      inputTokens,
-      outputTokens,
+      ...(costMinorUnits === undefined ? {} : { costMinorUnits }),
+      costStatus: completeTokenEvidence ? 'CALCULATED' : 'UNKNOWN_TOKENS',
+      priceSource: 'cost-tables',
+      ...(inputTokens === undefined ? {} : { inputTokens }),
+      ...(outputTokens === undefined ? {} : { outputTokens }),
     };
 
     return {
@@ -246,6 +247,8 @@ export class GeminiAiAdapter implements AiProviderAdapter {
       processedAt,
       ...(connector.region !== undefined ? { region: connector.region } : {}),
       costMinorUnits,
+      costStatus: 'CALCULATED',
+      priceSource: 'cost-tables',
       inputTokens,
       outputTokens: 0,
     };

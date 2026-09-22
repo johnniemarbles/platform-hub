@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import {
   validateIntelligenceUsageEvent,
   type IntelligenceUsageEvent,
@@ -16,6 +16,8 @@ export interface AiProposalUsageSource {
     readonly modelKey: string;
     readonly processedAt: string;
     readonly costMinorUnits?: number;
+    readonly costStatus?: 'CALCULATED' | 'UNKNOWN_TOKENS';
+    readonly priceSource?: 'provider' | 'matrix' | 'cost-tables' | null;
     readonly inputTokens?: number;
     readonly outputTokens?: number;
     readonly sourceReferences: readonly string[];
@@ -37,9 +39,10 @@ function capabilityKey(operation: string): string {
 }
 
 function deterministicEventId(parts: readonly string[]): string {
-  // Prefer randomUUID at record time; this is only used when caller needs stable tests.
-  void parts;
-  return randomUUID();
+  const hex = createHash('sha256').update(parts.join(':')).digest('hex').slice(0, 32).split('');
+  hex[12] = '5';
+  hex[16] = ['8', '9', 'a', 'b'][Number.parseInt(hex[16]!, 16) % 4]!;
+  return `${hex.slice(0, 8).join('')}-${hex.slice(8, 12).join('')}-${hex.slice(12, 16).join('')}-${hex.slice(16, 20).join('')}-${hex.slice(20).join('')}`;
 }
 
 /**
@@ -59,13 +62,20 @@ export function composeAiProposalUsageEvents(
   const currency = (input.currency ?? 'USD').toUpperCase();
   const workReference =
     input.workReference ?? `ai-invocation://${proposal.invocationId}`;
-  const evidenceRefs =
-    proposal.provenance.sourceReferences.length > 0
-      ? proposal.provenance.sourceReferences
-      : [`ai-proposal://${proposal.invocationId}`];
+  // Source references may contain full prompt text in provider adapters. Keep
+  // raw prompt/context out of the usage ledger's evidence_refs column.
+  const evidenceRefs = [`ai-proposal://${proposal.invocationId}`];
   const cost = proposal.provenance.costMinorUnits ?? 0;
   const inputTokens = proposal.provenance.inputTokens ?? 0;
   const outputTokens = proposal.provenance.outputTokens ?? 0;
+  const completeTokenEvidence = proposal.provenance.inputTokens !== undefined
+    && proposal.provenance.outputTokens !== undefined;
+  const costStatus = proposal.provenance.costStatus
+    ?? (proposal.provenance.costMinorUnits !== undefined || completeTokenEvidence
+      ? 'CALCULATED'
+      : 'UNKNOWN_TOKENS');
+  const priceSource = proposal.provenance.priceSource
+    ?? (proposal.provenance.costMinorUnits === undefined ? null : 'cost-tables');
   const cap = capabilityKey(proposal.operation);
 
   const base = {
@@ -82,6 +92,8 @@ export function composeAiProposalUsageEvents(
     recordedAt,
     correlationId,
     evidenceRefs,
+    costStatus,
+    priceSource,
   } as const;
 
   const events: IntelligenceUsageEvent[] = [
