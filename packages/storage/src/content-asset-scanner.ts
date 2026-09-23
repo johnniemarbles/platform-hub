@@ -130,7 +130,21 @@ export class HttpContentAssetScanner implements ContentAssetScanner {
       cache: 'no-store',
       redirect: 'error',
     });
-    if (!response.ok) throw new Error(`CONTENT_ASSET_SCAN_PROVIDER_FAILED:${response.status}`);
+    if (!response.ok) {
+      // Scanner error responses contain only a bounded reasonKey by contract.
+      // Preserve that safe diagnostic without ever logging/reflecting the
+      // signed fetch URL, bearer token, or request body.
+      let reasonKey = 'UNKNOWN';
+      try {
+        const failure = await response.json() as Record<string, unknown>;
+        if (typeof failure.reasonKey === 'string' && SAFE_KEY.test(failure.reasonKey)) {
+          reasonKey = failure.reasonKey;
+        }
+      } catch {
+        // Keep UNKNOWN for non-JSON or malformed provider responses.
+      }
+      throw new Error(`CONTENT_ASSET_SCAN_PROVIDER_FAILED:${response.status}:${reasonKey}`);
+    }
 
     const value = await response.json() as Record<string, unknown>;
     const verdict = required(value.verdict, 'CONTENT_ASSET_SCAN_RESPONSE_INVALID', 40);
