@@ -239,3 +239,4 @@ export * from './aws-textract-adapter.ts';
 export * from './build-worker-adapters.ts';
 export * from './openai-compatible-catalog.ts';
 export * from './workload-tiers.ts';
+export * from './embed-text.ts';
