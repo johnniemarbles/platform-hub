@@ -104,3 +104,25 @@ test('preserves sanitized Twilio voice rejection detail for delivery diagnostics
   assert.match(result.reason ?? '', /code 21215/);
   assert.doesNotMatch(result.reason ?? '', /AC_MOCK_ACCOUNT_SID_FOR_TESTS/);
 });
+
+test('requests a status callback per call-progress event so hang-ups are reported', async () => {
+  let body = '';
+  const adapter = new TwilioVoiceAdapter({
+    credentials: async () => ({ accountSid: 'AC123', authToken: 'auth_token' }),
+    connectorKey: 'twilio-global',
+    signalingBaseUrl: 'https://platform.example.com',
+    fetchImpl: async (_input, init) => {
+      body = String(init?.body);
+      return new Response(JSON.stringify({ sid: 'CA123' }), { status: 201 });
+    },
+  });
+
+  await adapter.send(baseRequest);
+  const params = new URLSearchParams(body);
+  assert.equal(
+    params.get('StatusCallback'),
+    'https://platform.example.com/api/webhooks/twilio?tenantId=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa&connectorKey=twilio-global',
+  );
+  assert.equal(params.get('StatusCallbackMethod'), 'POST');
+  assert.deepEqual(params.getAll('StatusCallbackEvent'), ['initiated', 'ringing', 'answered', 'completed']);
+});

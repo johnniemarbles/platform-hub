@@ -97,7 +97,12 @@ export class TwilioVoiceAdapter implements CommunicationProviderAdapter {
     });
     if (statusCallback !== null) {
       formData.append('StatusCallback', statusCallback);
-      formData.append('StatusCallbackEvent', 'initiated ringing answered completed');
+      formData.append('StatusCallbackMethod', 'POST');
+      // REST expects the parameter repeated per event; a space-separated value
+      // is TwiML attribute syntax and left calls without a hang-up callback.
+      for (const event of ['initiated', 'ringing', 'answered', 'completed']) {
+        formData.append('StatusCallbackEvent', event);
+      }
     }
 
     const response = await this.#fetch(`https://api.twilio.com/2010-04-01/Accounts/${creds.accountSid}/Calls.json`, {
