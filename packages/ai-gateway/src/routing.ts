@@ -112,9 +112,17 @@ export class RoutedAiGateway implements AiGateway {
       policy,
     );
     if (route.connector === null) {
+      // Name each connector's rejection (e.g. NOT_ALLOWED_BY_POLICY) so a
+      // failed live call explains itself in logs and provider attempts.
+      const rejected = Object.entries(route.rejected)
+        .map(([key, reasons]) => `${key}=${reasons.join('+')}`)
+        .join(', ');
+      const detail = route.considered.length === 0
+        ? `no tenant connector offers ${capabilityKey}`
+        : rejected || `considered ${route.considered.join(', ')}`;
       throw new RoutedAiGatewayError(
         'AI_CONNECTOR_UNAVAILABLE',
-        `No compliant connector is available: ${route.reason}.`,
+        `No compliant connector is available: ${route.reason} (${detail}).`,
       );
     }
 
