@@ -34,7 +34,8 @@
     "./provider-send-request": "./src/provider-send-request.ts",
     "./twilio-sms-whatsapp-adapter": "./src/twilio-sms-whatsapp-adapter.ts",
     "./twilio-voice-adapter": "./src/twilio-voice-adapter.ts",
-    "./governed-twilio-binding": "./src/governed-twilio-binding.ts"
+    "./governed-twilio-binding": "./src/governed-twilio-binding.ts",
+    "./voice-call-window": "./src/voice-call-window.ts"
   },
   "dependencies": {
     "@platform-hub/credential-custody": "workspace:*",
