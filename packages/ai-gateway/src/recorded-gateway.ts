@@ -164,7 +164,9 @@ export class RecordedAiGateway implements AiGateway {
         type: 'FAILED', failureCode: failure.code,
         reason: failure.reason,
       });
-      throw new Error(failure.reason);
+      // Keep the failure code: callers (e.g. live voice) tell "no connector"
+      // apart from a retryable provider blip by it.
+      throw Object.assign(new Error(failure.reason), { code: failure.code });
     }
   }
 }
