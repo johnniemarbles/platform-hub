@@ -17,8 +17,9 @@
     "check": "pnpm run check:architecture && pnpm run test:architecture && pnpm run typecheck:scripts && pnpm run typecheck && pnpm run test"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11",
+    "@types/node": "^22.15.0",
     "turbo": "^2.5.6",
-    "typescript": "^5.8.3",
-    "@types/node": "^22.15.0"
+    "typescript": "^5.8.3"
   }
 }

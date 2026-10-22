@@ -1,0 +1,23 @@
+{
+  "name": "@platform-hub/hub-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/server.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts",
+    "dev": "node --experimental-strip-types --watch src/server.ts",
+    "start": "node --experimental-strip-types src/server.ts"
+  },
+  "dependencies": {
+    "@platform-hub/contracts": "workspace:*",
+    "@platform-hub/enforcement": "workspace:*",
+    "@platform-hub/credential-custody": "workspace:*",
+    "pg": "^8.12.0",
+    "@electric-sql/pglite": "^0.3.9"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.6"
+  }
+}

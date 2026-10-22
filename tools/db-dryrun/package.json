@@ -1,0 +1,13 @@
+{
+  "name": "@platform-hub/db-dryrun",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.3.9"
+  }
+}
