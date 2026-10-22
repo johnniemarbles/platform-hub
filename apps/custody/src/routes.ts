@@ -1,4 +1,4 @@
-import { isGenerateLlmProvider } from '@expadio/ai-gateway';
+import { isGenerateLlmProvider } from './llm-providers.ts';
 import {
   CredentialIntakeService,
   CustodyError,

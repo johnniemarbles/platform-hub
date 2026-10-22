@@ -26,7 +26,7 @@ test('custody-service package has no pg dependency', () => {
   const all = { ...pkg.dependencies, ...pkg.devDependencies };
   assert.ok(!('pg' in all), 'pg must not be a dependency of custody-service');
   assert.ok(!('@types/pg' in all), '@types/pg must not be a dependency of custody-service');
-  assert.ok(!('@expadio/postgres-runtime' in all), 'postgres-runtime must not be a dependency');
+  assert.ok(!('@platform-core/postgres-runtime' in all), 'postgres-runtime must not be a dependency');
 });
 
 test('custody-service sources never import pg, dbPool, or DATABASE_URL', () => {

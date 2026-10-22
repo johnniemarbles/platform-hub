@@ -1,4 +1,4 @@
-# @expadio/custody-service
+# @platform-hub/custody
 
 **WO-E8-B** — separate process for credential custody (design spec §2.2).
 

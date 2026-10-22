@@ -1,5 +1,5 @@
 {
-  "name": "@expadio/custody-service",
+  "name": "@platform-hub/custody",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,11 +7,10 @@
     "dev": "node --experimental-strip-types --watch src/server.ts",
     "start": "node --experimental-strip-types src/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test test/*.test.ts"
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts"
   },
   "dependencies": {
-    "@platform-hub/credential-custody": "workspace:*",
-    "@expadio/ai-gateway": "workspace:*"
+    "@platform-hub/credential-custody": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
