@@ -23,6 +23,9 @@ importers:
 
   apps/custody:
     dependencies:
+      '@platform-hub/ai-gateway':
+        specifier: workspace:*
+        version: link:../../packages/ai-gateway
       '@platform-hub/credential-custody':
         specifier: workspace:*
         version: link:../../packages/credential-custody
@@ -56,6 +59,12 @@ importers:
         specifier: ^8.11.6
         version: 8.23.1
 
+  packages/ai-gateway:
+    dependencies:
+      '@platform-hub/provider-registry':
+        specifier: workspace:*
+        version: link:../provider-registry
+
   packages/aws-sigv4:
     devDependencies:
       '@types/node':
@@ -84,6 +93,23 @@ importers:
         version: link:../contracts
 
   packages/provider-registry: {}
+
+  packages/storage:
+    dependencies:
+      '@platform-hub/aws-sigv4':
+        specifier: workspace:*
+        version: link:../aws-sigv4
+      '@platform-hub/provider-registry':
+        specifier: workspace:*
+        version: link:../provider-registry
+
+  packages/usage-metering: {}
+
+  packages/voice-gateway:
+    dependencies:
+      '@platform-hub/provider-registry':
+        specifier: workspace:*
+        version: link:../provider-registry
 
   tools/db-dryrun:
     dependencies:

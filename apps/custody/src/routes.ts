@@ -1,4 +1,4 @@
-import { isGenerateLlmProvider } from './llm-providers.ts';
+import { isGenerateLlmProvider } from '@platform-hub/ai-gateway';
 import {
   CredentialIntakeService,
   CustodyError,
