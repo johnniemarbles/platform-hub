@@ -1,0 +1,9 @@
+[phases.setup]
+nixPkgs = ["nodejs_22", "corepack"]
+
+[phases.install]
+cmds = ["corepack enable", "pnpm install --frozen-lockfile"]
+
+[phases.build]
+# No build step needed: hub-api runs TypeScript directly via Node 22 --experimental-strip-types.
+cmds = ["echo 'no build step'"]

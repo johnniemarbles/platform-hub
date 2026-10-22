@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts",
     "dev": "node --experimental-strip-types --watch src/server.ts",
-    "start": "node --experimental-strip-types src/server.ts"
+    "migrate": "node --experimental-strip-types scripts/migrate.ts",
+    "start": "node --experimental-strip-types scripts/migrate.ts && node --experimental-strip-types src/server.ts"
   },
   "dependencies": {
     "@platform-hub/contracts": "workspace:*",
