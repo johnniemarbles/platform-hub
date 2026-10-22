@@ -1,0 +1,14 @@
+{
+  "name": "@platform-hub/enforcement",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@platform-hub/contracts": "workspace:*"
+  }
+}

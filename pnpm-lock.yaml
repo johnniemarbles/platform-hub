@@ -18,6 +18,33 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
+  packages/aws-sigv4:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.3
+        version: 22.20.5
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
+  packages/contracts: {}
+
+  packages/credential-custody:
+    dependencies:
+      '@platform-hub/aws-sigv4':
+        specifier: workspace:*
+        version: link:../aws-sigv4
+    devDependencies:
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
+  packages/enforcement:
+    dependencies:
+      '@platform-hub/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
 packages:
 
   '@turbo/darwin-64@2.11.10':
