@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: '1'
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable Corepack
+        run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Architecture rules (plan V3.1)
+        run: pnpm run check:architecture
+      - name: Architecture checker tests
+        run: pnpm run test:architecture
+      - name: Typecheck repo scripts
+        run: pnpm run typecheck:scripts
+      - name: Typecheck
+        run: pnpm run typecheck
+      - name: Test
+        run: pnpm run test
+      - name: Build
+        run: pnpm run build

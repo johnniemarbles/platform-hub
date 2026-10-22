@@ -1,0 +1,7 @@
+# Platform team owns the hub (Plan V3.1, operating decision 3).
+*                               @johnniemarbles
+/packages/credential-custody/   @johnniemarbles
+/packages/enforcement/          @johnniemarbles
+/apps/custody/                  @johnniemarbles
+/architecture.config.json       @johnniemarbles
+/scripts/architecture/          @johnniemarbles

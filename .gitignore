@@ -1,0 +1,19 @@
+node_modules/
+.pnpm-store/
+.turbo/
+dist/
+coverage/
+.next/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.DS_Store
+test-results/
+playwright-report/
+# Never commit secret material or one-off decrypt/debug scripts at the repo root (Gate 0 finding in expadio).
+*.pem
+*.key
+/*secret*.sql
+/*decrypt*
+/*encrypt_secret*
