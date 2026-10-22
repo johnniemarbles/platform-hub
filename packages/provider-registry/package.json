@@ -7,12 +7,9 @@
     ".": "./src/index.ts",
     "./repository": "./src/repository.ts"
   },
-  "dependencies": {
-    "@expadio/authorization": "workspace:*",
-    "@expadio/authorization-persistence": "workspace:*",
-    "@expadio/tenancy": "workspace:*"
-  },
+  "dependencies": {},
   "scripts": {
-    "test": "node --experimental-strip-types --test test/*.test.ts"
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
   }
 }

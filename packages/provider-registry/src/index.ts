@@ -225,4 +225,10 @@ export * from './credential-rotation.ts';
 export * from './credential-rotation-activation.ts';
 export * from './credential-rotation-revocation.ts';
 
-export * from './persisted-credential-lease-authorizer.ts';
+// NOTE: the persisted-credential-lease-authorizer was deliberately not
+// extracted. Its policy engine lived in @platform-core; in the hub, every
+// request already carries a verified scope token that encodes which actions
+// are permitted (see @platform-hub/contracts enforceScope and the hub-api
+// dispatcher). A scope-token-based CredentialLeaseAuthorizer lands in a later
+// Gate 2.5 commit; the CredentialLeaseAuthorizer interface above is the
+// stable integration point.
