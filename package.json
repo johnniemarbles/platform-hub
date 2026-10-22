@@ -14,7 +14,8 @@
     "check:architecture": "node --experimental-strip-types --no-warnings scripts/architecture/check.ts",
     "test:architecture": "node --experimental-strip-types --no-warnings --test scripts/architecture/check.test.ts",
     "typecheck:scripts": "tsc -p tsconfig.json",
-    "check": "pnpm run check:architecture && pnpm run test:architecture && pnpm run typecheck:scripts && pnpm run typecheck && pnpm run test"
+    "check": "pnpm run check:architecture && pnpm run test:architecture && pnpm run typecheck:scripts && pnpm run typecheck && pnpm run test",
+    "start": "pnpm --filter @platform-hub/hub-api start"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.11",
