@@ -35,7 +35,10 @@ const isMain = process.argv[1] !== undefined && import.meta.url.endsWith('server
 if (isMain) {
   const config = configureFromEnv();
   const handler = makeDispatcher(routes, config);
-  const port = Number(process.env['HUB_API_PORT'] ?? 3030);
+  // Railway sets PORT dynamically; prefer it, then HUB_API_PORT, then dev default.
+  const portStr = process.env['PORT'] || process.env['HUB_API_PORT'] || '3030';
+  const port = Number(portStr);
+  if (!Number.isFinite(port) || port <= 0) throw new Error(`invalid port: ${portStr}`);
   const server = createServer((req, res) => { handler(req, res).catch((e) => {
     res.statusCode = 500; res.end(JSON.stringify({ ok: false, code: 'REFUSED' }));
     console.error('[hub-api] uncaught', e);
