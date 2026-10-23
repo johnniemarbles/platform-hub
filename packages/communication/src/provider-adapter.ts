@@ -3,7 +3,7 @@ import type {
   CommunicationPurpose,
   CommunicationRecipient,
 } from './index.ts';
-import type { RenderedCommunicationTemplate } from './template-renderer.ts';
+import type { RenderedCommunicationTemplate } from './template-types.ts';
 
 export interface CommunicationProviderSender {
   readonly senderKey: string;

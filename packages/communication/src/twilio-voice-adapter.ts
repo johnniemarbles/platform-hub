@@ -180,9 +180,9 @@ async function twilioErrorDetail(response: Response): Promise<string | null> {
 function redactTwilioDetail(value: string): string {
   return value
     .replace(/Basic\s+[A-Za-z0-9._~+/=-]+/giu, 'Basic [redacted]')
-    .replace(/AC[a-f0-9]{32}/giu, 'AC[redacted]')
-    .replace(/SK[a-f0-9]{32}/giu, 'SK[redacted]')
-    .replace(/MG[a-f0-9]{32}/giu, 'MG[redacted]')
+    .replace(/AC[a-f0-9]{32}|AC_[A-Za-z0-9_]+/giu, 'AC[redacted]')
+    .replace(/SK[a-f0-9]{32}|SK_[A-Za-z0-9_]+/giu, 'SK[redacted]')
+    .replace(/MG[a-f0-9]{32}|MG_[A-Za-z0-9_]+/giu, 'MG[redacted]')
     .slice(0, 500);
 }
 

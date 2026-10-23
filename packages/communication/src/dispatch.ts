@@ -5,8 +5,7 @@ import type {
   CommunicationPurpose,
   CommunicationRecipient,
 } from './index.ts';
-import type { CommunicationTemplateMatchedScope } from './template.ts';
-import type { RenderedCommunicationTemplate } from './template-renderer.ts';
+import type { CommunicationTemplateMatchedScope, RenderedCommunicationTemplate } from './template-types.ts';
 
 export type AllowedCommunicationPreflightDecision = CommunicationPreflightDecision & {
   readonly allowed: true;

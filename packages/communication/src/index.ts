@@ -1,9 +1,44 @@
-export * from './conversation.ts';
-export * from './suppression.ts';
-export * from './consent.ts';
-export * from './template.ts';
-export * from './content-policy.ts';
-export * from './html-sanitizer.ts';
+// Hub-side exports only. Core-side (templates, consent, suppression,
+// content-policy, conversation, html-sanitizer) extracted
+// into @platform-core/communication at Gate 3.
+
+export * from './provider-adapter.ts';
+export * from './provider-adapter-registry.ts';
+export * from './provider-invocation.ts';
+export * from './provider-send-request.ts';
+export * from './provider-unavailable-adapter.ts';
+export * from './provider-webhook.ts';
+export * from './webhook-ingestion.ts';
+export * from './dispatch.ts';
+export * from './dispatch-routing.ts';
+export * from './queue-worker.ts';
+export * from './plane.ts';
+export * from './spine.ts';
+export * from './throttle.ts';
+export * from './sender.ts';
+export * from './sending-domain.ts';
+export * from './delivery-repository.ts';
+export * from './delivery-state.ts';
+export * from './send-attempt.ts';
+export * from './persisted-preflight.ts';
+export * from './retry-policy.ts';
+export * from './resend-email-adapter.ts';
+export * from './resend-webhook-normalizer.ts';
+export * from './twilio-sms-whatsapp-adapter.ts';
+export * from './twilio-voice-adapter.ts';
+export * from './twilio-voice-signaling.ts';
+export * from './twilio-webhook-normalizer.ts';
+export * from './linkedin-social-text-adapter.ts';
+export * from './governed-twilio-binding.ts';
+export * from './governed-resend-binding.ts';
+export * from './governed-linkedin-binding.ts';
+export * from './governed-action-adapter.ts';
+export * from './voice-call-window.ts';
+export * from './voice-transport.ts';
+export * from './voice-transport-repository.ts';
+export * from './voice-webhook.ts';
+export * from './voice-webhook-ingestion.ts';
+export * from './decision-trace.ts';
 
 export type CommunicationChannel =
   | 'email'
@@ -289,14 +324,3 @@ export function recipientSupportsChannel(
 function nonBlank(value: string | undefined): boolean {
   return value !== undefined && value.trim().length > 0;
 }
-
-export * from './webhook-ingestion.ts';
-export * from './resend-webhook-normalizer.ts';
-export * from './twilio-webhook-normalizer.ts';
-export * from './plane.ts';
-export * from './throttle.ts';
-export * from './decision-trace.ts';
-export * from './provider-unavailable-adapter.ts';
-export * from './sending-domain.ts';
-export * from './spine.ts';
-export * from './suppression-policy.ts';

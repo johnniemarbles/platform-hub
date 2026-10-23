@@ -43,7 +43,8 @@
       ],
       "allowedPaths": [
         "packages/adapters",
-        "apps/custody"
+        "apps/custody",
+        "packages/communication"
       ]
     },
     {

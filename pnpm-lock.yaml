@@ -74,6 +74,15 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
+  packages/communication:
+    dependencies:
+      '@platform-hub/credential-custody':
+        specifier: workspace:*
+        version: link:../credential-custody
+      '@platform-hub/provider-registry':
+        specifier: workspace:*
+        version: link:../provider-registry
+
   packages/contracts: {}
 
   packages/credential-custody:

@@ -1,4 +1,35 @@
-import type { GovernedActionIntent } from '@expadio/governed-actions';
+export interface GovernedActionIntent {
+  readonly tenantId: string;
+  readonly sourceEventId: string;
+  readonly sourceEventType: string;
+  readonly aggregateType: string;
+  readonly aggregateId: string;
+  readonly ruleKey: string;
+  readonly executorClass: string;
+  readonly actionKey: string;
+  readonly idempotencyKey: string;
+  readonly correlationId: string;
+  readonly causationId: string;
+  readonly requestedBySubjectId: string;
+  readonly requestedAt: Date;
+  readonly configuration: Readonly<Record<string, unknown>>;
+  readonly policyDecision?: unknown;
+}
+
+export interface CommunicationTemplateRepository {
+  resolveActive(input: unknown): Promise<{
+    matchedScope: any;
+    template: any;
+  }>;
+}
+
+export async function resolveAndRenderCommunicationTemplate(
+  _templates: any,
+  _input: any,
+): Promise<any> {
+  throw new Error('NOT_IMPLEMENTED_UNTIL_CORE: template resolution lives in platform-core (Gate 3)');
+}
+
 import type {
   ConnectorDefinition,
   RoutingPolicy,
@@ -23,8 +54,6 @@ import {
   evaluatePersistedCommunicationPreflight,
   type PersistedCommunicationPreflightRepositories,
 } from './persisted-preflight.ts';
-import type { CommunicationTemplateRepository } from './template.ts';
-import { resolveAndRenderCommunicationTemplate } from './template-resolve-render.ts';
 
 const COMMUNICATION_CHANNELS: readonly CommunicationChannel[] = [
   'email',
