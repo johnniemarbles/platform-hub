@@ -13,12 +13,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { PGlite } from '@electric-sql/pglite';
 import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
 
 const newDb = () => PGlite.create({ extensions: { pgcrypto } });
 
-const MIG_DIR = new URL('../../../infra/db/migrations', import.meta.url).pathname;
+const MIG_DIR = fileURLToPath(new URL('../../../infra/db/migrations', import.meta.url));
 
 async function freshDb(): Promise<PGlite> {
   const db = await newDb();

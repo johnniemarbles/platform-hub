@@ -11,6 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { PGlite } from '@electric-sql/pglite';
 import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
@@ -19,7 +20,7 @@ import { dbFromPglite } from '../src/db-pglite.ts';
 import { makeDispatcher } from '../src/handler.ts';
 import { routes } from '../src/routes.ts';
 
-const MIG_DIR = new URL('../../../infra/db/migrations', import.meta.url).pathname;
+const MIG_DIR = fileURLToPath(new URL('../../../infra/db/migrations', import.meta.url));
 const SECRET = 'a'.repeat(SCOPE_TOKEN_SECRET_MIN_BYTES);
 
 async function freshDb() {

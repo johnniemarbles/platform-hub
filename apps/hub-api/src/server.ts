@@ -13,7 +13,9 @@ import { createServer } from 'node:http';
 import { Pool } from 'pg';
 import { dbFromPool } from './db-pg.ts';
 import { makeDispatcher, type HubApiConfig } from './handler.ts';
-import { routes } from './routes.ts';
+import { routes as debugRoutes } from './routes.ts';
+import { credentialRoutes, type AttestationRow } from './routes/credentials.ts';
+import { PostgresIdempotencyStore } from './idempotency-postgres.ts';
 
 const required = (name: string): string => {
   const value = process.env[name];
@@ -21,19 +23,21 @@ const required = (name: string): string => {
   return value;
 };
 
-export function configureFromEnv(): HubApiConfig {
+export function configureFromEnv(): { config: HubApiConfig; pool: Pool } {
   const algorithm = (process.env['SCOPE_TOKEN_ALGORITHM'] ?? 'HS256') as 'HS256' | 'EdDSA';
   const pool = new Pool({ connectionString: required('DATABASE_URL') });
   const db = dbFromPool(pool);
-  if (algorithm === 'HS256') {
-    return { db, algorithm, hs256Secret: required('SCOPE_TOKEN_HS256_SECRET') };
-  }
-  return { db, algorithm, ed25519PublicKey: required('SCOPE_TOKEN_ED25519_PUBLIC_KEY') };
+  const config: HubApiConfig = algorithm === 'HS256'
+    ? { db, algorithm, hs256Secret: required('SCOPE_TOKEN_HS256_SECRET') }
+    : { db, algorithm, ed25519PublicKey: required('SCOPE_TOKEN_ED25519_PUBLIC_KEY') };
+  return { config, pool };
 }
 
 const isMain = process.argv[1] !== undefined && import.meta.url.endsWith('server.ts');
 if (isMain) {
-  const config = configureFromEnv();
+  const { config, pool } = configureFromEnv();
+  const idempotency = new PostgresIdempotencyStore<AttestationRow>(pool);
+  const routes = [...debugRoutes, ...credentialRoutes(idempotency)];
   const handler = makeDispatcher(routes, config);
   // Railway sets PORT dynamically; prefer it, then HUB_API_PORT, then dev default.
   const portStr = process.env['PORT'] || process.env['HUB_API_PORT'] || '3030';

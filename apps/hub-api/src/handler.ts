@@ -49,7 +49,8 @@ export interface HubApiConfig {
 
 export interface RouteDefinition {
   readonly method: 'GET' | 'POST' | 'DELETE' | 'PATCH';
-  readonly path: string;
+  readonly path?: string;
+  readonly pattern?: RegExp;
   readonly scope: Omit<ScopeCheck, 'tenantId' | 'appId'>;
   readonly handler: Route;
 }
@@ -109,7 +110,11 @@ export function makeDispatcher(routes: readonly RouteDefinition[], config: HubAp
       return sendJson(res, 200, { ok: true, traceId });
     }
 
-    const route = routes.find((r) => r.method === req.method && r.path === req.url);
+    const route = routes.find((r) => {
+      if (r.method !== req.method) return false;
+      if (r.pattern) return r.pattern.test(req.url ?? '');
+      return r.path !== undefined && r.path === req.url;
+    });
     if (!route) {
       return sendJson(res, 404, refusal('REFUSED', traceId, 'route not found'));
     }

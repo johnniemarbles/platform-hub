@@ -11,6 +11,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // The hub repo cannot read the core repo in this session, but it CAN assert
 // that its own enforcement surface has no identity imports — i.e. a hub outage
@@ -27,7 +28,7 @@ test('no file under packages/enforcement imports an identity SDK', () => {
   const banned = /(^|from\s+['"])(@clerk\/|@aws-sdk\/client-cognito-identity-provider|aws-jwt-verify|amazon-cognito-identity-js)/;
   const violations: string[] = [];
   // Run from the package directory; walk our own src.
-  for (const f of walk(new URL('../src', import.meta.url).pathname)) {
+  for (const f of walk(fileURLToPath(new URL('../src', import.meta.url)))) {
     const text = readFileSync(f, 'utf8');
     if (banned.test(text)) violations.push(f);
   }
