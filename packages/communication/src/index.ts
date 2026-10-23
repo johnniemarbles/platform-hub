@@ -325,6 +325,6 @@ function nonBlank(value: string | undefined): boolean {
   return value !== undefined && value.trim().length > 0;
 }
 export * from './resolve-and-send.ts';
-
 export * from './consent-types.ts';
 export * from './lease-service-types.ts';
+

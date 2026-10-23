@@ -1,10 +1,5 @@
 /**
- * The route table for Gate 2.
- *
- * One read-only route today: /v1/_debug/whoami. It echoes the verified claims
- * and the server-side context visible inside the transaction, so an operator
- * (or a test) can confirm the full pipeline is wired without touching tenant
- * data. More routes land as providers come in at Gate 2.5 / Gate 3.
+ * The route table for Gate 2 & Gate 4.
  */
 import type { RouteDefinition } from './handler.ts';
 
@@ -12,7 +7,7 @@ export const routes: readonly RouteDefinition[] = [
   {
     method: 'GET',
     path: '/v1/_debug/whoami',
-    scope: {},  // the handler reads only the claims it already holds
+    scope: {},
     handler: async ({ tx, claims }) => {
       const r = await tx.query<{ tenant: string | null; app: string | null; cls: string | null; grant: string | null }>(`
         SELECT platform.current_tenant_id()::text AS tenant,
