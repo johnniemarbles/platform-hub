@@ -2,18 +2,18 @@ import type {
   ConnectorDefinition,
   CredentialLease,
   CredentialLeaseRequest,
-  GovernedCredentialLeaseService,
 } from '@platform-hub/provider-registry';
 import type {
   ConnectorCredentialRepository,
   SecretResolver,
 } from '@platform-hub/provider-registry/repository';
+import type { CredentialLeaseService } from './lease-service-types.ts';
 import type { ResendApiTokenProvider, ResendCredentialRequest } from './resend-email-adapter.ts';
 
 const RESEND_PROVIDER_KEY = 'resend';
 const EMAIL_CAPABILITY_KEY = 'communication.email.send';
 
-export type CredentialLeaseService = Pick<GovernedCredentialLeaseService, 'issue'>;
+export type { CredentialLeaseService };
 
 export interface GovernedResendCredentialProviderOptions {
   readonly connector: ConnectorDefinition;
@@ -41,13 +41,6 @@ export class GovernedResendCredentialError extends Error {
   }
 }
 
-/**
- * Produces a send-time token callback for one routed Resend connector. The
- * credential reference is loaded through the infrastructure repository,
- * authorized/audited through a short-lived lease, and resolved only after that
- * lease succeeds. The raw secret is returned directly to the adapter and is
- * never added to communication or provider-registry domain records.
- */
 export function governedResendApiTokenProvider(
   options: GovernedResendCredentialProviderOptions,
 ): ResendApiTokenProvider {
