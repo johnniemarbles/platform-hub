@@ -21,6 +21,7 @@ import {
   verifyScopeTokenEd25519,
   enforceScope,
   refusal,
+  isRefusal,
   type ScopeCheck,
   type VerifyResult,
   type Verified,
@@ -147,9 +148,16 @@ export function makeDispatcher(routes: readonly RouteDefinition[], config: HubAp
         hierarchyScope: verified.claims.hierarchyScope,
         credentialClass: verified.claims.credentialClass,
         ...(verified.claims.grantId !== undefined ? { grantId: verified.claims.grantId } : {}),
-      }, async (tx) => route.handler({ tx, claims: verified.claims, traceId }, req));
+      }, async (tx) => {
+        const handlerRes = await route.handler({ tx, claims: verified.claims, traceId }, req);
+        if (isRefusal(handlerRes)) throw handlerRes;
+        return handlerRes;
+      });
       sendJson(res, 200, { ok: true, traceId, result: body });
     } catch (e) {
+      if (isRefusal(e)) {
+        return sendRefusal(res, e);
+      }
       sendJson(res, 500, { ok: false, code: 'REFUSED', traceId, message: 'internal error' });
       // In production this is where the trace flows into OpenTelemetry.
       // Keeping console.error here so dev loop surfaces the stack.

@@ -2,21 +2,19 @@ import type {
   ConnectorDefinition,
   CredentialLease,
   CredentialLeaseRequest,
-  GovernedCredentialLeaseService,
 } from '@platform-hub/provider-registry';
 import type {
   ConnectorCredentialRepository,
   SecretResolver,
 } from '@platform-hub/provider-registry/repository';
+import type { CredentialLeaseService } from './lease-service-types.ts';
 import type {
   LinkedInAccessTokenProvider,
   LinkedInSocialCredentialRequest,
 } from './linkedin-social-text-adapter.ts';
 
 const LINKEDIN_PROVIDER_KEY = 'linkedin';
-const SOCIAL_CAPABILITY_KEY = 'communication.social.send';
-
-export type CredentialLeaseService = Pick<GovernedCredentialLeaseService, 'issue'>;
+const SOCIAL_TEXT_CAPABILITY_KEY = 'communication.social.text.publish';
 
 export interface GovernedLinkedInCredentialProviderOptions {
   readonly connector: ConnectorDefinition;
@@ -67,7 +65,7 @@ export function governedLinkedInAccessTokenProvider(
       tenantId: request.tenantId,
       requestedBySubjectId: options.requestedBySubjectId,
       connectorKey: options.connector.connectorKey,
-      purpose: `${SOCIAL_CAPABILITY_KEY}:${request.purpose}`,
+      purpose: `communication.social.text.publish:${request.purpose}`,
       requestedAt: request.requestedAt,
       correlationId: stable(options.correlationId(), 'credential correlation id'),
       evidenceRefs: [
@@ -94,7 +92,7 @@ export function governedLinkedInAccessTokenProvider(
 function validateConnector(connector: ConnectorDefinition): void {
   const valid = connector.enabled
     && connector.providerKey.trim().toLowerCase() === LINKEDIN_PROVIDER_KEY
-    && connector.capabilityKeys.includes(SOCIAL_CAPABILITY_KEY);
+    && connector.capabilityKeys.includes(SOCIAL_TEXT_CAPABILITY_KEY);
   if (!valid) {
     throw new GovernedLinkedInCredentialError(
       'LINKEDIN_CONNECTOR_INVALID',
@@ -111,7 +109,7 @@ function assertLeaseIsCurrent(lease: CredentialLease, requestedAt: string): void
     || issuedAt > at || expiresAt <= at) {
     throw new GovernedLinkedInCredentialError(
       'LINKEDIN_SECRET_EXPIRED',
-      'LinkedIn credential lease is not active for this send attempt.',
+      'LinkedIn credential lease is not active for this publish attempt.',
     );
   }
 }

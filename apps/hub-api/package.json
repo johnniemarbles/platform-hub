@@ -15,6 +15,7 @@
     "@platform-hub/contracts": "workspace:*",
     "@platform-hub/enforcement": "workspace:*",
     "@platform-hub/credential-custody": "workspace:*",
+    "@platform-hub/communication": "workspace:*",
     "pg": "^8.12.0",
     "@electric-sql/pglite": "^0.3.9"
   },

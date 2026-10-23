@@ -1,13 +1,5 @@
 /**
  * Boot the hub-api HTTP server from environment variables.
- *
- * Required:
- *   DATABASE_URL           — Postgres connection string
- *   HUB_API_PORT           — defaults to 3030
- *   SCOPE_TOKEN_ALGORITHM  — 'HS256' (dev) or 'EdDSA' (production)
- *   SCOPE_TOKEN_HS256_SECRET or SCOPE_TOKEN_ED25519_PUBLIC_KEY (PEM)
- *
- * This file is deliberately thin: all behaviour lives in handler.ts/routes.ts.
  */
 import { createServer } from 'node:http';
 import { Pool } from 'pg';
@@ -15,6 +7,7 @@ import { dbFromPool } from './db-pg.ts';
 import { makeDispatcher, type HubApiConfig } from './handler.ts';
 import { routes as debugRoutes } from './routes.ts';
 import { credentialRoutes, type AttestationRow } from './routes/credentials.ts';
+import { communicationsRoutes } from './routes/communications.ts';
 import { PostgresIdempotencyStore } from './idempotency-postgres.ts';
 
 const required = (name: string): string => {
@@ -37,9 +30,13 @@ const isMain = process.argv[1] !== undefined && import.meta.url.endsWith('server
 if (isMain) {
   const { config, pool } = configureFromEnv();
   const idempotency = new PostgresIdempotencyStore<AttestationRow>(pool);
-  const routes = [...debugRoutes, ...credentialRoutes(idempotency)];
+  const commsIdempotency = new PostgresIdempotencyStore<any>(pool);
+  const routes = [
+    ...debugRoutes,
+    ...credentialRoutes(idempotency),
+    ...communicationsRoutes(commsIdempotency),
+  ];
   const handler = makeDispatcher(routes, config);
-  // Railway sets PORT dynamically; prefer it, then HUB_API_PORT, then dev default.
   const portStr = process.env['PORT'] || process.env['HUB_API_PORT'] || '3030';
   const port = Number(portStr);
   if (!Number.isFinite(port) || port <= 0) throw new Error(`invalid port: ${portStr}`);
