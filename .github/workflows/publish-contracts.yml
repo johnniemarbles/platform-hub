@@ -1,0 +1,27 @@
+name: Publish @platform-hub/contracts
+on:
+  push:
+    tags: ['contracts-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://npm.pkg.github.com
+          scope: '@platform-hub'
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @platform-hub/contracts run typecheck
+      - run: pnpm --filter @platform-hub/contracts run test
+      - run: pnpm --filter @platform-hub/contracts publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,13 +1,25 @@
 {
   "name": "@platform-hub/contracts",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.1.1",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
     "./scope-token": "./src/scope-token.ts",
     "./refusal": "./src/refusal.ts"
   },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/johnniemarbles/platform-hub.git",
+    "directory": "packages/contracts"
+  },
+  "files": [
+    "src/",
+    "README.md"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts"
